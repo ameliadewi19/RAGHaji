@@ -13,7 +13,11 @@ import com.ml.shubham0204.docqa.ui.screens.chat.ChatScreen
 import com.ml.shubham0204.docqa.ui.screens.docs.DocsScreen
 import com.ml.shubham0204.docqa.ui.screens.edit_api_key.EditAPIKeyScreen
 
+// llama
+import android.llama.cpp.LLamaAndroid
+
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

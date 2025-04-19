@@ -82,6 +82,9 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
+    // LLama
+    implementation(project(":llama"))
+
     // Apache POI
     implementation(libs.apache.poi)
     implementation(libs.apache.poi.ooxml)
