@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Doc-QA"
 include(":app")
+include(":llama")

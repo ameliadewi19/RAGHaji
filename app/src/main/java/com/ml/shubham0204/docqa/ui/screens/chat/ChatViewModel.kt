@@ -7,15 +7,18 @@ import com.ml.shubham0204.docqa.data.GeminiAPIKey
 import com.ml.shubham0204.docqa.data.RetrievedContext
 import com.ml.shubham0204.docqa.domain.embeddings.SentenceEmbeddingProvider
 import com.ml.shubham0204.docqa.domain.llm.GeminiRemoteAPI
+import com.ml.shubham0204.docqa.domain.llm.LlamaRemoteAPI
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.koin.android.annotation.KoinViewModel
+import android.content.Context
 
 @KoinViewModel
 class ChatViewModel(
+    private val context: Context,
     private val documentsDB: DocumentsDB,
     private val chunksDB: ChunksDB,
     private val geminiAPIKey: GeminiAPIKey,
@@ -33,34 +36,59 @@ class ChatViewModel(
     private val _retrievedContextListState = MutableStateFlow(emptyList<RetrievedContext>())
     val retrievedContextListState: StateFlow<List<RetrievedContext>> = _retrievedContextListState
 
+//    fun getAnswer(
+//        query: String,
+//        prompt: String,
+//    ) {
+//        val apiKey = geminiAPIKey.getAPIKey() ?: throw Exception("Gemini API key is null")
+//        val geminiRemoteAPI = GeminiRemoteAPI(apiKey)
+//        _isGeneratingResponseState.value = true
+//        _questionState.value = query
+//        try {
+//            var jointContext = ""
+//            val retrievedContextList = ArrayList<RetrievedContext>()
+//            val queryEmbedding = sentenceEncoder.encodeText(query)
+//            chunksDB.getSimilarChunks(queryEmbedding, n = 5).forEach {
+//                jointContext += " " + it.second.chunkData
+//                retrievedContextList.add(RetrievedContext(it.second.docFileName, it.second.chunkData))
+//            }
+//            val inputPrompt = prompt.replace("\$CONTEXT", jointContext).replace("\$QUERY", query)
+//            CoroutineScope(Dispatchers.IO).launch {
+//                geminiRemoteAPI.getResponse(inputPrompt)?.let { llmResponse ->
+//                    _responseState.value = llmResponse
+//                    _isGeneratingResponseState.value = false
+//                    _retrievedContextListState.value = retrievedContextList
+//                }
+//            }
+//        } catch (e: Exception) {
+//            _isGeneratingResponseState.value = false
+//            _questionState.value = ""
+//            throw e
+//        }
+//    }
+
     fun getAnswer(
         query: String,
         prompt: String,
     ) {
-        val apiKey = geminiAPIKey.getAPIKey() ?: throw Exception("Gemini API key is null")
-        val geminiRemoteAPI = GeminiRemoteAPI(apiKey)
+        val inputPrompt = "Here is the user's query: $query" // Hanya ganti QUERY, karena tidak pakai CONTEXT
+
+        val llamaRemoteAPI = LlamaRemoteAPI(context)
         _isGeneratingResponseState.value = true
         _questionState.value = query
-        try {
-            var jointContext = ""
-            val retrievedContextList = ArrayList<RetrievedContext>()
-            val queryEmbedding = sentenceEncoder.encodeText(query)
-            chunksDB.getSimilarChunks(queryEmbedding, n = 5).forEach {
-                jointContext += " " + it.second.chunkData
-                retrievedContextList.add(RetrievedContext(it.second.docFileName, it.second.chunkData))
-            }
-            val inputPrompt = prompt.replace("\$CONTEXT", jointContext).replace("\$QUERY", query)
-            CoroutineScope(Dispatchers.IO).launch {
-                geminiRemoteAPI.getResponse(inputPrompt)?.let { llmResponse ->
+
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                llamaRemoteAPI.getResponse(inputPrompt)?.let { llmResponse ->
                     _responseState.value = llmResponse
-                    _isGeneratingResponseState.value = false
-                    _retrievedContextListState.value = retrievedContextList
                 }
+            } catch (e: Exception) {
+                _responseState.value = "Error: ${e.message}"
+            } finally {
+                _isGeneratingResponseState.value = false
+                _retrievedContextListState.value = emptyList() // kosongin context
             }
-        } catch (e: Exception) {
-            _isGeneratingResponseState.value = false
-            _questionState.value = ""
-            throw e
         }
     }
 

@@ -4,6 +4,11 @@
 
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <uses-sdk
+        android:minSdkVersion="26"
+        android:targetSdkVersion="35"
+        tools:overrideLibrary="android.llama.cpp" />
+
     <application
         android:name=".DocQAApplication"
         android:allowBackup="true"
