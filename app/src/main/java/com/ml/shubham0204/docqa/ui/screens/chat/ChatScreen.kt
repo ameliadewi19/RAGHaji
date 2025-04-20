@@ -244,28 +244,28 @@ private fun QueryInput(
             modifier = Modifier.background(Color.Blue, CircleShape),
             onClick = {
                 keyboardController?.hide()
-                if (!chatViewModel.checkNumDocuments()) {
-                    Toast
-                        .makeText(context, "Add documents to execute queries", Toast.LENGTH_LONG)
-                        .show()
-                    return@IconButton
-                }
-                if (!chatViewModel.checkValidAPIKey()) {
-                    createAlertDialog(
-                        dialogTitle = "Invalid API Key",
-                        dialogText = "Please enter a Gemini API key to use a LLM for generating responses.",
-                        dialogPositiveButtonText = "Add API key",
-                        onPositiveButtonClick = onEditAPIKeyClick,
-                        dialogNegativeButtonText = "Open Gemini Console",
-                        onNegativeButtonClick = {
-                            Intent(Intent.ACTION_VIEW).apply {
-                                data = "https://aistudio.google.com/apikey".toUri()
-                                context.startActivity(this)
-                            }
-                        },
-                    )
-                    return@IconButton
-                }
+//                if (!chatViewModel.checkNumDocuments()) {
+//                    Toast
+//                        .makeText(context, "Add documents to execute queries", Toast.LENGTH_LONG)
+//                        .show()
+//                    return@IconButton
+//                }
+//                if (!chatViewModel.checkValidAPIKey()) {
+//                    createAlertDialog(
+//                        dialogTitle = "Invalid API Key",
+//                        dialogText = "Please enter a Gemini API key to use a LLM for generating responses.",
+//                        dialogPositiveButtonText = "Add API key",
+//                        onPositiveButtonClick = onEditAPIKeyClick,
+//                        dialogNegativeButtonText = "Open Gemini Console",
+//                        onNegativeButtonClick = {
+//                            Intent(Intent.ACTION_VIEW).apply {
+//                                data = "https://aistudio.google.com/apikey".toUri()
+//                                context.startActivity(this)
+//                            }
+//                        },
+//                    )
+//                    return@IconButton
+//                }
                 if (questionText.trim().isEmpty()) {
                     Toast.makeText(context, "Enter a query to execute", Toast.LENGTH_LONG).show()
                     return@IconButton
