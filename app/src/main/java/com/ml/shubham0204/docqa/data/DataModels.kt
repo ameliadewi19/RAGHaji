@@ -4,6 +4,7 @@ import io.objectbox.annotation.Entity
 import io.objectbox.annotation.HnswIndex
 import io.objectbox.annotation.Id
 import io.objectbox.annotation.Index
+import java.util.UUID
 
 @Entity
 data class Chunk(
@@ -12,6 +13,15 @@ data class Chunk(
     var docFileName: String = "",
     var chunkData: String = "",
     @HnswIndex(dimensions = 384) var chunkEmbedding: FloatArray = floatArrayOf(),
+)
+
+@Entity
+data class ChunkNode(
+    @Id var localId: Long = 0,
+    val id: String = UUID.randomUUID().toString(),
+    val text: String,
+    val size: Int,
+    val parentId: String? = null
 )
 
 @Entity
