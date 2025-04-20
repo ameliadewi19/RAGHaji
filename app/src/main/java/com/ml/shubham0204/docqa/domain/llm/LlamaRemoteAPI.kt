@@ -13,8 +13,15 @@ import java.io.IOException
 class LlamaRemoteAPI(private val context: Context) {
 
     private var llamaAndroid: LLamaAndroid? = null
+    private var isModelLoaded = false
 
     suspend fun initModel(): Boolean = withContext(Dispatchers.IO) {
+
+        if (isModelLoaded) {
+            Log.d("LLAMA", "Model already initialized.")
+            return@withContext true
+        }
+
         return@withContext try {
             // Pastikan model sudah disalin ke filesDir
             copyGGUFModelFromAssets(context)
@@ -37,6 +44,7 @@ class LlamaRemoteAPI(private val context: Context) {
             )
 
             Log.d("LLAMA", "Model loaded from $modelPath")
+            isModelLoaded = true
             true
         } catch (e: Exception) {
             Log.e("LLAMA", "Failed to load model", e)
@@ -48,11 +56,11 @@ class LlamaRemoteAPI(private val context: Context) {
         try {
 
             // Inisialisasi model
-            val modelInitialized = initModel()
-            if (!modelInitialized) {
-                Log.e("LLAMA", "Model initialization failed")
-                return@withContext null
-            }
+            initModel()
+//            if (!modelInitialized) {
+//                Log.e("LLAMA", "Model initialization failed")
+//                return@withContext null
+//            }
 
             Log.d("LLAMA", "Prompt given: $prompt")
 
