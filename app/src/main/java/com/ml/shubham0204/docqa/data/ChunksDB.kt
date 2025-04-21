@@ -1,5 +1,6 @@
 package com.ml.shubham0204.docqa.data
 
+import android.widget.Toast
 import org.koin.core.annotation.Single
 
 @Single
@@ -38,4 +39,10 @@ class ChunksDB {
                 .toList(),
         )
     }
+
+    fun clearChunks() {
+        chunksBox.removeAll()
+//        Toast.makeText(this, "Semua chunks telah dihapus", Toast.LENGTH_SHORT).show()
+    }
+
 }

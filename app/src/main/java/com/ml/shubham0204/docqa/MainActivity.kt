@@ -15,12 +15,24 @@ import com.ml.shubham0204.docqa.ui.screens.edit_api_key.EditAPIKeyScreen
 
 // llama
 import android.llama.cpp.LLamaAndroid
+import android.util.Log
+import androidx.lifecycle.lifecycleScope
+import com.ml.shubham0204.docqa.data.Chunk
+import com.ml.shubham0204.docqa.data.ChunksDB
+import com.ml.shubham0204.docqa.domain.embeddings.SentenceEmbeddingProvider
+import com.ml.shubham0204.docqa.domain.readers.Readers
+import com.ml.shubham0204.docqa.domain.splitters.WhiteSpaceSplitter
+import com.ml.shubham0204.docqa.ui.screens.docs.DocsViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
             val navHostController = rememberNavController()
             NavHost(
