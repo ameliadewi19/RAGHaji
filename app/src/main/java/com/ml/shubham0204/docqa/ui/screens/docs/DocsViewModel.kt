@@ -1,6 +1,7 @@
 package com.ml.shubham0204.docqa.ui.screens.docs
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.ml.shubham0204.docqa.data.Chunk
 import com.ml.shubham0204.docqa.data.ChunksDB
@@ -8,6 +9,8 @@ import com.ml.shubham0204.docqa.data.Document
 import com.ml.shubham0204.docqa.data.DocumentsDB
 import com.ml.shubham0204.docqa.domain.embeddings.SentenceEmbeddingProvider
 import com.ml.shubham0204.docqa.domain.readers.Readers
+import com.ml.shubham0204.docqa.domain.splitters.SlidingWindowChunker
+import com.ml.shubham0204.docqa.domain.splitters.Small2BigChunker
 import com.ml.shubham0204.docqa.domain.splitters.WhiteSpaceSplitter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -32,6 +35,7 @@ class DocsViewModel(
         fileName: String,
         documentType: Readers.DocumentType,
     ) = withContext(Dispatchers.IO) {
+        chunksDB.clearChunks()
         val text =
             Readers.getReaderForDocType(documentType).readFromInputStream(inputStream)
                 ?: return@withContext
@@ -43,23 +47,147 @@ class DocsViewModel(
                     docAddedTime = System.currentTimeMillis(),
                 ),
             )
+
+        //default fixed size
+//        setProgressDialogText("Creating chunks...")
+//        val chunks = WhiteSpaceSplitter.createChunks(text, chunkSize = 512, chunkOverlap = 20)
+//        setProgressDialogText("Adding chunks to database...")
+//        val size = chunks.size
+//        chunks.forEachIndexed { index, s ->
+//            setProgressDialogText("Added ${index + 1}/$size chunk(s) to database...")
+//            val embedding = sentenceEncoder.encodeText(s)
+//            chunksDB.addChunk(
+//                Chunk(
+//                    docId = newDocId,
+//                    docFileName = fileName,
+//                    chunkData = s,
+//                    chunkEmbedding = embedding,
+//                ),
+//            )
+//        }
+//
+//        Log.d("ChunkDebug", "=== CHUNK Default ===")
+//        chunks.forEachIndexed { index, chunkText ->
+//            Log.d(
+//                "ChunkDebug",
+//                "Chunk $index (size=${chunkText.length}, text: ${chunkText}"
+//            )
+//        }
+//        Log.d("ChunkDebug", "=== TOTAL CHUNKS: ${chunks.size} ===")
+
+        //small2big
+//        setProgressDialogText("Creating chunks...")
+//        val chunkNodes = Small2BigChunker.createMultiSizeChunks(
+//            docText = text,
+//            baseChunkSize = 1024,
+//            subChunkSizes = listOf(128, 256, 512)
+//        )
+//        setProgressDialogText("Adding chunks to database...")
+//        val size = chunkNodes.size
+//        chunkNodes.forEachIndexed { index, node ->
+//            setProgressDialogText("Added ${index + 1}/$size chunk(s) to database...")
+//
+//            val embedding = sentenceEncoder.encodeText(node.text)
+//
+//            chunksDB.addChunk(
+//                Chunk(
+//                    docId = newDocId,
+//                    docFileName = fileName,
+//                    chunkData = node.text,
+//                    chunkEmbedding = embedding,
+//                    chunkSize = node.size,
+//                    chunkUuid = node.id,
+//                    parentChunkId = node.parentId
+//                )
+//            )
+//        }
+//        Log.d("ChunkDebug", "=== CHUNK HASIL SMALL2BIG ===")
+//        chunkNodes.forEachIndexed { index, chunk ->
+//            Log.d(
+//                "ChunkDebug",
+//                "Chunk $index (size=${chunk.size}, parent=${chunk.parentId ?: "ROOT"}): ${chunk.text}..."
+//            )
+//        }
+//        Log.d("ChunkDebug", "=== TOTAL CHUNKS: ${chunkNodes.size} ===")
+
+
+        //sliding window
         setProgressDialogText("Creating chunks...")
-        val chunks = WhiteSpaceSplitter.createChunks(text, chunkSize = 500, chunkOverlap = 50)
+        val chunks = SlidingWindowChunker.createSlidingChunks(
+            docText = text,
+            windowSize = 128,
+            step = 25
+        )
+
+        Log.d("ChunkDebug", "=== CHUNK HASIL SLIDING WINDOW ===")
+        chunks.forEachIndexed { index, chunkText ->
+            Log.d(
+                "ChunkDebug",
+                "Chunk $index (size=${chunkText.length}, parent=${"ROOT"}): ${chunkText}..."
+            )
+        }
+        Log.d("ChunkDebug", "=== TOTAL CHUNKS: ${chunks.size} ===")
+
         setProgressDialogText("Adding chunks to database...")
         val size = chunks.size
-        chunks.forEachIndexed { index, s ->
+        chunks.forEachIndexed { index, chunkText ->
             setProgressDialogText("Added ${index + 1}/$size chunk(s) to database...")
-            val embedding = sentenceEncoder.encodeText(s)
+
+            val embedding = sentenceEncoder.encodeText(chunkText)
+
             chunksDB.addChunk(
                 Chunk(
                     docId = newDocId,
                     docFileName = fileName,
-                    chunkData = s,
+                    chunkData = chunkText,
                     chunkEmbedding = embedding,
-                ),
+                )
             )
         }
+
     }
+
+//    suspend fun addDocument(context: Context) = withContext(Dispatchers.IO) {
+//        val fileName = "split_haji_1-1.pdf"
+//        val documentType = Readers.DocumentType.PDF
+//
+//        // Skip jika sudah pernah di-chunk
+//        if (chunksDB.hasChunks(fileName)) {
+//            Log.i("DocsViewModel", "Chunks untuk dokumen sudah ada, skip.")
+//            return@withContext
+//        }
+//
+//        // Baca dokumen dari assets
+//        val inputStream = context.assets.open(fileName)
+//        val text = Readers.getReaderForDocType(documentType).readFromInputStream(inputStream)
+//            ?: return@withContext
+//
+//        // (Opsional) Simpan dokumen ke DB kalau masih butuh catatan dokumentasi
+//        documentsDB.addDocument(
+//            Document(
+//                docText = text,
+//                docFileName = fileName,
+//                docAddedTime = System.currentTimeMillis(),
+//            ),
+//        )
+//
+//        // Proses chunking
+//        val chunks = WhiteSpaceSplitter.createChunks(text, chunkSize = 500, chunkOverlap = 50)
+//        val size = chunks.size
+//        chunks.forEachIndexed { index, chunkText ->
+//            val embedding = sentenceEncoder.encodeText(chunkText)
+//            chunksDB.addChunk(
+//                Chunk(
+//                    docFileName = fileName,
+//                    chunkData = chunkText,
+//                    chunkEmbedding = embedding,
+//                )
+//            )
+//            Log.i("DocsViewModel", "Added ${index + 1}/$size chunk(s)")
+//        }
+//
+//        Log.i("DocsViewModel", "Chunking dan penyimpanan selesai.")
+//    }
 
     suspend fun addDocumentFromUrl(
         url: String,
