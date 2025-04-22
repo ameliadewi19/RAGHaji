@@ -39,8 +39,8 @@ class GeminiRemoteAPI(
     suspend fun getResponse(prompt: String): String? =
         withContext(Dispatchers.IO) {
             Log.e("APP", "Prompt given: $prompt")
-            val response = "Ini adalah hasilnya"
-            return@withContext response
+            val response = generativeModel.generateContent(prompt)
+            return@withContext response.text
         }
 
 //    suspend fun getResponse(prompt: String): String? = withContext(Dispatchers.IO) {

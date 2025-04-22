@@ -27,7 +27,7 @@ class LlamaRemoteAPI(private val context: Context) {
             copyGGUFModelFromAssets(context)
 
             llamaAndroid = LLamaAndroid.instance()
-            val modelFile = File(context.filesDir, "models/Llama-3.2-1B-Instruct-Q6_K_L.gguf")
+            val modelFile = File(context.filesDir, "models/Llama-3.2-3B-Instruct-Q4_K_L.gguf")
             val modelPath = modelFile.absolutePath
 
             if (!modelFile.exists()) {

@@ -106,7 +106,7 @@ class ChatViewModel(
                 val queryEmbedding = sentenceEncoder.encodeText(query)
 
                 // 2. Ambil top 5 context dari DB
-                val retrievedChunks = chunksDB.getSimilarChunks(queryEmbedding, n = 5)
+                val retrievedChunks = chunksDB.getSimilarChunks(queryEmbedding, n = 3)
                 val retrievedContextList = ArrayList<RetrievedContext>()
                 var jointContext = ""
 
