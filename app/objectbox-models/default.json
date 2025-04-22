@@ -5,7 +5,7 @@
   "entities": [
     {
       "id": "1:8449246619297061692",
-      "lastPropertyId": "5:905490671636322609",
+      "lastPropertyId": "8:7359431747445542971",
       "name": "Chunk",
       "properties": [
         {
@@ -36,6 +36,21 @@
         {
           "id": "5:905490671636322609",
           "name": "docFileName",
+          "type": 9
+        },
+        {
+          "id": "6:5558389520657761270",
+          "name": "chunkSize",
+          "type": 5
+        },
+        {
+          "id": "7:4078494474898866005",
+          "name": "chunkUuid",
+          "type": 9
+        },
+        {
+          "id": "8:7359431747445542971",
+          "name": "parentChunkId",
           "type": 9
         }
       ],

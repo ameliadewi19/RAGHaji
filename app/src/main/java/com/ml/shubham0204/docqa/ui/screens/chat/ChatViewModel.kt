@@ -67,30 +67,73 @@ class ChatViewModel(
 //        }
 //    }
 
+//    fun getAnswer(
+//        query: String,
+//        prompt: String,
+//    ) {
+//        val inputPrompt = "Here is the user's query: $query" // Hanya ganti QUERY, karena tidak pakai CONTEXT
+//
+//        val llamaRemoteAPI = LlamaRemoteAPI(context)
+//        _isGeneratingResponseState.value = true
+//        _questionState.value = query
+//
+//
+//        CoroutineScope(Dispatchers.IO).launch {
+//            try {
+//                llamaRemoteAPI.getResponse(inputPrompt)?.let { llmResponse ->
+//                    _responseState.value = llmResponse
+//                }
+//            } catch (e: Exception) {
+//                _responseState.value = "Error: ${e.message}"
+//            } finally {
+//                _isGeneratingResponseState.value = false
+//                _retrievedContextListState.value = emptyList() // kosongin context
+//            }
+//        }
+//    }
+
     fun getAnswer(
         query: String,
-        prompt: String,
+        prompt: String, // prompt bisa berisi placeholder seperti $CONTEXT dan $QUERY
     ) {
-        val inputPrompt = "Here is the user's query: $query" // Hanya ganti QUERY, karena tidak pakai CONTEXT
-
         val llamaRemoteAPI = LlamaRemoteAPI(context)
         _isGeneratingResponseState.value = true
         _questionState.value = query
 
-
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                // 1. Buat embedding dari query
+                val queryEmbedding = sentenceEncoder.encodeText(query)
+
+                // 2. Ambil top 5 context dari DB
+                val retrievedChunks = chunksDB.getSimilarChunks(queryEmbedding, n = 5)
+                val retrievedContextList = ArrayList<RetrievedContext>()
+                var jointContext = ""
+
+                for ((_, chunk) in retrievedChunks) {
+                    jointContext += " " + chunk.chunkData
+                    retrievedContextList.add(RetrievedContext(chunk.docFileName, chunk.chunkData))
+                }
+
+                // 3. Bangun prompt final dengan konteks dan query
+                val inputPrompt = prompt
+                    .replace("\$CONTEXT", jointContext)
+                    .replace("\$QUERY", query)
+
+                // 4. Kirim ke LLM API
                 llamaRemoteAPI.getResponse(inputPrompt)?.let { llmResponse ->
                     _responseState.value = llmResponse
+                    _retrievedContextListState.value = retrievedContextList
                 }
             } catch (e: Exception) {
                 _responseState.value = "Error: ${e.message}"
+                _retrievedContextListState.value = emptyList()
             } finally {
                 _isGeneratingResponseState.value = false
-                _retrievedContextListState.value = emptyList() // kosongin context
             }
         }
     }
+
 
     fun checkNumDocuments(): Boolean = documentsDB.getDocsCount() > 0
 
