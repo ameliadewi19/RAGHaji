@@ -132,8 +132,8 @@ class LlamaRemoteAPI(private val context: Context) {
                 "waktu_generate" to "$totalTime"
             )
 
-            // Menyimpan log ke CSV dengan tambahan prompt
-            writeLogToCSV(context, logData, prompt)
+            // Menyimpan log ke json dengan tambahan prompt
+//            writeLogToCSV(context, logData, prompt)
             writeLogToJson(context, logData)
 
             return@withContext resultText
@@ -167,41 +167,41 @@ class LlamaRemoteAPI(private val context: Context) {
 //        }
 //    }
 
-    fun writeLogToCSV(context: Context, logData: Map<String, String>, prompt: String) {
-        val downloadsFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-
-        if (!downloadsFolder.exists()) {
-            downloadsFolder.mkdirs()
-        }
-
-        val logFile = File(downloadsFolder, "log_hasil_generate.csv")
-
-        try {
-            val fileWriter = FileWriter(logFile, true)
-
-            if (logFile.length() == 0L) {
-                val headers = "prompt;bleu;rouge_l;ttft;itps;otps;oet;total_time"
-                fileWriter.appendLine(headers)
-            }
-
-            // Escape tanda kutip di prompt
-            val safePrompt = prompt.replace("\"", "\"\"")
-
-            // Bungkus prompt dengan tanda kutip
-            val quotedPrompt = "\"$safePrompt\""
-
-            val csvLine = logData.entries.joinToString(";") { "${it.key}=${it.value}" } + ";$quotedPrompt"
-
-            fileWriter.appendLine(csvLine)
-            fileWriter.flush()
-            fileWriter.close()
-
-            Log.d("LLAMA", "Log saved to ${logFile.absolutePath}")
-
-        } catch (e: IOException) {
-            Log.e("LLAMA", "Error writing log to CSV", e)
-        }
-    }
+//    fun writeLogToCSV(context: Context, logData: Map<String, String>, prompt: String) {
+//        val downloadsFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+//
+//        if (!downloadsFolder.exists()) {
+//            downloadsFolder.mkdirs()
+//        }
+//
+//        val logFile = File(downloadsFolder, "log_hasil_generate.csv")
+//
+//        try {
+//            val fileWriter = FileWriter(logFile, true)
+//
+//            if (logFile.length() == 0L) {
+//                val headers = "prompt;bleu;rouge_l;ttft;itps;otps;oet;total_time"
+//                fileWriter.appendLine(headers)
+//            }
+//
+//            // Escape tanda kutip di prompt
+//            val safePrompt = prompt.replace("\"", "\"\"")
+//
+//            // Bungkus prompt dengan tanda kutip
+//            val quotedPrompt = "\"$safePrompt\""
+//
+//            val csvLine = logData.entries.joinToString(";") { "${it.key}=${it.value}" } + ";$quotedPrompt"
+//
+//            fileWriter.appendLine(csvLine)
+//            fileWriter.flush()
+//            fileWriter.close()
+//
+//            Log.d("LLAMA", "Log saved to ${logFile.absolutePath}")
+//
+//        } catch (e: IOException) {
+//            Log.e("LLAMA", "Error writing log to CSV", e)
+//        }
+//    }
 
     fun writeLogToJson(context: Context, logData: Map<String, String>) {
         val downloadsFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
