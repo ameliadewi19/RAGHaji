@@ -39,12 +39,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
@@ -55,7 +57,14 @@ import com.ml.shubham0204.docqa.ui.components.AppAlertDialog
 import com.ml.shubham0204.docqa.ui.components.createAlertDialog
 import com.ml.shubham0204.docqa.ui.theme.DocQATheme
 import dev.jeziellago.compose.markdowntext.MarkdownText
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+
+import android.content.Context
+import android.util.Log
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -215,6 +224,40 @@ private fun ColumnScope.QALayout(chatViewModel: ChatViewModel) {
     }
 }
 
+fun loadQuestionsAndAnswers(context: Context): Pair<ArrayList<String>, ArrayList<String>> {
+    val questions = ArrayList<String>()
+    val correctAnswers = ArrayList<String>()
+
+    try {
+        val inputStream = context.assets.open("dataset_pengujian.csv")
+        val reader = BufferedReader(InputStreamReader(inputStream))
+
+        var line: String? = reader.readLine()
+        // Lewatin header (question;correct_answer)
+        if (line != null) {
+            line = reader.readLine()
+        }
+
+        while (line != null) {
+            val parts = line.split(";")
+            if (parts.size >= 2) {
+                val question = parts[0].trim()
+                val correctAnswer = parts[1].trim()
+
+                questions.add(question)
+                correctAnswers.add(correctAnswer)
+            }
+            line = reader.readLine()
+        }
+
+        reader.close()
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+
+    return Pair(questions, correctAnswers)
+}
+
 @Composable
 private fun QueryInput(
     chatViewModel: ChatViewModel,
@@ -223,9 +266,18 @@ private fun QueryInput(
     var questionText by remember { mutableStateOf("") }
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
+
+    // Daftar query yang akan diproses
+    val (questions, correctAnswers) = loadQuestionsAndAnswers(context)
+
+    for (i in questions.indices) {
+        Log.d("QUESTION", questions[i])
+        Log.d("ANSWER", correctAnswers[i])
+    }
+
     Row(verticalAlignment = Alignment.CenterVertically) {
         TextField(
-            modifier = Modifier.fillMaxWidth().weight(1f),
+            modifier = Modifier.fillMaxWidth().weight(1f).testTag("query_input"),
             value = questionText,
             onValueChange = { questionText = it },
             shape = RoundedCornerShape(16.dp),
@@ -240,50 +292,87 @@ private fun QueryInput(
             placeholder = { Text(text = "Ask documents...") },
         )
         Spacer(modifier = Modifier.width(8.dp))
+//        IconButton(
+//            modifier = Modifier.testTag("send_button").background(Color.Blue, CircleShape),
+//            onClick = {
+//                keyboardController?.hide()
+////                if (!chatViewModel.checkNumDocuments()) {
+////                    Toast
+////                        .makeText(context, "Add documents to execute queries", Toast.LENGTH_LONG)
+////                        .show()
+////                    return@IconButton
+////                }
+////                if (!chatViewModel.checkValidAPIKey()) {
+////                    createAlertDialog(
+////                        dialogTitle = "Invalid API Key",
+////                        dialogText = "Please enter a Gemini API key to use a LLM for generating responses.",
+////                        dialogPositiveButtonText = "Add API key",
+////                        onPositiveButtonClick = onEditAPIKeyClick,
+////                        dialogNegativeButtonText = "Open Gemini Console",
+////                        onNegativeButtonClick = {
+////                            Intent(Intent.ACTION_VIEW).apply {
+////                                data = "https://aistudio.google.com/apikey".toUri()
+////                                context.startActivity(this)
+////                            }
+////                        },
+////                    )
+////                    return@IconButton
+////                }
+//                if (questionText.trim().isEmpty()) {
+//                    Toast.makeText(context, "Enter a query to execute", Toast.LENGTH_LONG).show()
+//                    return@IconButton
+//                }
+//                try {
+//                    // Loop untuk mengirimkan setiap query
+//                    queries.forEach { query ->
+//                        chatViewModel.getAnswer(
+//                            query,
+//                            context.getString(R.string.prompt_1),
+//                        )
+//                    }
+//                } catch (e: Exception) {
+//                    createAlertDialog(
+//                        dialogTitle = "Error",
+//                        dialogText = "An error occurred while generating the response: ${e.message}",
+//                        dialogPositiveButtonText = "Close",
+//                        onPositiveButtonClick = {},
+//                        dialogNegativeButtonText = null,
+//                        onNegativeButtonClick = {},
+//                    )
+//                }
+//            },
+//        ) {
+//            Icon(
+//                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+//                contentDescription = "Send query",
+//                tint = Color.White,
+//            )
+//        }
+        val scope = rememberCoroutineScope()
+
         IconButton(
-            modifier = Modifier.background(Color.Blue, CircleShape),
+            modifier = Modifier.testTag("send_button").background(Color.Blue, CircleShape),
             onClick = {
                 keyboardController?.hide()
-//                if (!chatViewModel.checkNumDocuments()) {
-//                    Toast
-//                        .makeText(context, "Add documents to execute queries", Toast.LENGTH_LONG)
-//                        .show()
-//                    return@IconButton
-//                }
-//                if (!chatViewModel.checkValidAPIKey()) {
-//                    createAlertDialog(
-//                        dialogTitle = "Invalid API Key",
-//                        dialogText = "Please enter a Gemini API key to use a LLM for generating responses.",
-//                        dialogPositiveButtonText = "Add API key",
-//                        onPositiveButtonClick = onEditAPIKeyClick,
-//                        dialogNegativeButtonText = "Open Gemini Console",
-//                        onNegativeButtonClick = {
-//                            Intent(Intent.ACTION_VIEW).apply {
-//                                data = "https://aistudio.google.com/apikey".toUri()
-//                                context.startActivity(this)
-//                            }
-//                        },
-//                    )
-//                    return@IconButton
-//                }
+
                 if (questionText.trim().isEmpty()) {
                     Toast.makeText(context, "Enter a query to execute", Toast.LENGTH_LONG).show()
                     return@IconButton
                 }
-                try {
-                    chatViewModel.getAnswer(
-                        questionText,
-                        context.getString(R.string.prompt_1),
-                    )
-                } catch (e: Exception) {
-                    createAlertDialog(
-                        dialogTitle = "Error",
-                        dialogText = "An error occurred while generating the response: ${e.message}",
-                        dialogPositiveButtonText = "Close",
-                        onPositiveButtonClick = {},
-                        dialogNegativeButtonText = null,
-                        onNegativeButtonClick = {},
-                    )
+
+                scope.launch {
+                    questions.zip(correctAnswers).forEach { (question, correctAnswer) ->  // Pair question sama answer
+                        chatViewModel.getAnswer(
+                            question,
+                            context.getString(R.string.prompt_1),
+                            correctAnswer // <-- kirim correctAnswer-nya
+                        )
+
+                        while (chatViewModel.isGeneratingResponseState.value) {
+                            delay(100)
+                        }
+                        delay(300)
+                    }
                 }
             },
         ) {
@@ -293,5 +382,6 @@ private fun QueryInput(
                 tint = Color.White,
             )
         }
+
     }
 }

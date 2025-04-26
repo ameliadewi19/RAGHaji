@@ -26,17 +26,14 @@ if __name__ == "__main__":
     d. Tawaf wada’
     e. Tawaf nadzar"""
     cand = """Macam-Macam Tawaf adalah 5, yaitu:
-    Tawaf rukun
-Tawaf qudum
-Tawaf sunat
-Tawaf wada’
-dan tawaf nadzar.
-Sebagai tambahan, macam-macam tawaf di Makkah terdiri dari 5 jenis, yaitu:
-
-- 5 Tawaf rukun, yaitu tawaf rukun haji yang dikerjakan dua kali,
-- 5 Tawaf qudum, yaitu tawaf qudum yang dikerjakan di hari pertama kedatangan,
-- 5 Tawaf sunat, yaitu tawaf sunat yang dikerjakan di hari kedua kedatangan,
-- 5 Tawaf wada’, yaitu tawaf wada’ yang dikerjakan setiap kesempatan masuk ke Masjidil Haram,
-- 5 Tawaf nadzar, yaitu tawaf nadzar yang dikerjakan di hari kedua kedatangan di Makkah."""
+    Macam macam tawaf yang ada dalam konteks tersebut adalah: 
+- Tawaf rukun, 
+- Tawaf qudum, 
+- Tawaf sunat, 
+- Tawaf wada’ dan tawaf nadzar. 
+Selain itu, ada tiga macam pelaksanaan haji, yaitu: 
+- Haji ifrād, 
+- Haji qirān, dan 
+- Haji tamattu."""
     result = evaluate(ref, cand)
     print(result)
