@@ -12,8 +12,11 @@ import androidx.navigation.compose.rememberNavController
 import com.ml.shubham0204.docqa.ui.screens.chat.ChatScreen
 import com.ml.shubham0204.docqa.ui.screens.docs.DocsScreen
 import com.ml.shubham0204.docqa.ui.screens.edit_api_key.EditAPIKeyScreen
-import com.chaquo.python.Python
-import com.chaquo.python.android.AndroidPlatform
+//import com.chaquo.python.Python
+//import com.chaquo.python.android.AndroidPlatform
+import androidx.activity.compose.setContent
+import com.ml.shubham0204.docqa.ui.screens.chat.ChatViewModel
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 // llama
 import android.llama.cpp.LLamaAndroid
@@ -31,12 +34,14 @@ import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
+//    private val chatViewModel: ChatViewModel by viewModel()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (! Python.isStarted()) {
-            Python.start(AndroidPlatform(this))
-        }
-        val py = Python.getInstance()
+//        if (! Python.isStarted()) {
+//            Python.start(AndroidPlatform(this))
+//        }
+//        val py = Python.getInstance()
         enableEdgeToEdge()
 
         setContent {
@@ -57,5 +62,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+//        // Jalankan validasi QnA
+//        Log.d("TEST", "Ini adalah permulaan tes")
+
+//        val qnaTest = QnATest()
+//        qnaTest.runQnAValidation(this, chatViewModel)
     }
 }
