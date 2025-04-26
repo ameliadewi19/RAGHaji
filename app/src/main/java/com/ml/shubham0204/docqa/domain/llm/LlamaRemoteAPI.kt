@@ -3,12 +3,17 @@ package com.ml.shubham0204.docqa.domain.llm
 import android.content.Context
 import android.util.Log
 import android.llama.cpp.LLamaAndroid
+import com.chaquo.python.PyObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import kotlinx.coroutines.flow.toList
+
+import com.chaquo.python.Python
+import com.chaquo.python.android.AndroidPlatform
 
 class LlamaRemoteAPI(private val context: Context) {
 
@@ -54,18 +59,36 @@ class LlamaRemoteAPI(private val context: Context) {
 
     suspend fun getResponse(prompt: String): String? = withContext(Dispatchers.IO) {
         try {
-
-            // Inisialisasi model
+            // Inisialisasi model (pastikan ini hanya dijalankan sekali)
             initModel()
-//            if (!modelInitialized) {
-//                Log.e("LLAMA", "Model initialization failed")
-//                return@withContext null
-//            }
 
-            Log.d("LLAMA", "Prompt given: $prompt")
+            // Tambahkan konteks sebelum prompt utama
+            val context = """
+            $prompt
+        """.trimIndent()
 
-            // Mengirim prompt ke model
-            val result = llamaAndroid?.send(prompt)?.firstOrNull()
+            Log.d("LLAMA", "Prompt length (chars): ${context.length}")
+            Log.d("LLAMA", "Prompt content: \n$context")
+
+            val compare = """
+                Mabit di Muzdalifah waktunya mulai setelah Maghrib sampai terbit fajar 10 Dzulhijjah dan boleh sesaat asal sudah lewat tengah malam.
+            """.trimIndent()
+            val result = llamaAndroid?.send(context)?.toList()?.joinToString("")?.trim()
+
+            Log.d("LLamaResult", "Result: $result")
+            Log.d("Evaluation", "Halo")
+
+            val py = Python.getInstance()
+
+            val bm25Module = py.getModule("evaluation")
+
+            val hasil = bm25Module.callAttr("evaluate", compare, result.toString())
+            val hasilMap = hasil.asMap() as Map<String, Any>  // Tambahkan casting eksplisit
+
+            val bleu = hasilMap["bleu"]?.toString()?.toDouble()  // Pastikan nilai yang diambil adalah angka
+            val rougeL = hasilMap["rouge_l"]?.toString()?.toDouble()
+
+            Log.d("Evaluation", "BLEU: $bleu, ROUGE-L: $rougeL")
 
             Log.d("LLAMA", "Response: $result")
             return@withContext result
@@ -73,6 +96,21 @@ class LlamaRemoteAPI(private val context: Context) {
         } catch (e: Exception) {
             Log.e("LLAMA", "Error during prompt execution", e)
             return@withContext null
+        }
+    }
+
+    suspend fun getStreamingResponse(prompt: String, onToken: (String) -> Unit) = withContext(Dispatchers.IO) {
+        try {
+            initModel()
+            val context = prompt.trimIndent()
+            Log.d("LLAMA", "Streaming prompt:\n$context")
+
+            llamaAndroid?.send(context)?.collect { token ->
+                onToken(token)
+            }
+        } catch (e: Exception) {
+            Log.e("LLAMA", "Error streaming response", e)
+            onToken("\n[Error: ${e.message}]")
         }
     }
 

@@ -116,10 +116,18 @@ class ChatViewModel(
                 }
 
                 // 3. Bangun prompt final dengan konteks dan query
-                val inputPrompt = prompt
-                    .replace("\$CONTEXT", jointContext)
-                    .replace("\$QUERY", query)
 
+                val inputPrompt = """
+                    Konteks:
+                    $jointContext
+                    
+                    ===
+                    Query dari konteks diatas yaitu:
+                    $query
+                    
+                    ===
+                    Gunakan konteks sebagai jawaban dengan menyimpulkan dari ketiga konteks, tanpa mengulang jawaban yang sama.
+                """
                 // 4. Kirim ke LLM API
                 llamaRemoteAPI.getResponse(inputPrompt)?.let { llmResponse ->
                     _responseState.value = llmResponse
