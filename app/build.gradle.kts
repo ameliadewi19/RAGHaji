@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.jetbrains.kotlin.android)
     alias(libs.plugins.compose.compiler)
     id("com.google.devtools.ksp")
+    id("com.chaquo.python")
 }
 
 android {
@@ -19,6 +20,10 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+        ndk {
+            // Add NDK properties if wanted, e.g.
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
     }
     signingConfigs {
@@ -123,6 +128,29 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // testing
+    implementation("com.github.doyaaaaaken:kotlin-csv-jvm:0.15.0")
 }
 
 apply(plugin = "io.objectbox")
+
+chaquopy {
+    defaultConfig {
+        version = "3.11"
+        buildPython("C:/Users/ameli/AppData/Local/Programs/Python/Python311/python.exe")
+        pip {
+            // "-r"` followed by a requirements filename, relative to the
+            // project directory:
+            install("-r", "src/main/python/requirements.txt")
+        }
+    }
+}
+
+chaquopy {
+    sourceSets {
+        getByName("main") {
+            srcDir("src/main/python")
+        }
+    }
+}

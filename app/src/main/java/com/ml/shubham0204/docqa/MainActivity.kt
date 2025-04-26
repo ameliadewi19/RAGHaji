@@ -12,6 +12,8 @@ import androidx.navigation.compose.rememberNavController
 import com.ml.shubham0204.docqa.ui.screens.chat.ChatScreen
 import com.ml.shubham0204.docqa.ui.screens.docs.DocsScreen
 import com.ml.shubham0204.docqa.ui.screens.edit_api_key.EditAPIKeyScreen
+import com.chaquo.python.Python
+import com.chaquo.python.android.AndroidPlatform
 
 // llama
 import android.llama.cpp.LLamaAndroid
@@ -31,6 +33,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (! Python.isStarted()) {
+            Python.start(AndroidPlatform(this))
+        }
+        val py = Python.getInstance()
         enableEdgeToEdge()
 
         setContent {
