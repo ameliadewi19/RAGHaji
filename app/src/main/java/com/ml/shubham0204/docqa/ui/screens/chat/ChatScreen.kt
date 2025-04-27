@@ -63,7 +63,14 @@ import org.koin.androidx.compose.koinViewModel
 
 import android.content.Context
 import android.util.Log
+import org.apache.commons.compress.archivers.dump.InvalidFormatException
+import org.apache.poi.ss.usermodel.Row
+import org.apache.poi.ss.usermodel.Sheet
+import org.apache.poi.ss.usermodel.Workbook
+import org.apache.poi.ss.usermodel.WorkbookFactory
 import java.io.BufferedReader
+import java.io.IOException
+import java.io.InputStream
 import java.io.InputStreamReader
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -224,34 +231,39 @@ private fun ColumnScope.QALayout(chatViewModel: ChatViewModel) {
     }
 }
 
-fun loadQuestionsAndAnswers(context: Context): Pair<ArrayList<String>, ArrayList<String>> {
+fun loadQuestionsAndAnswersFromXlsx(context: Context): Pair<ArrayList<String>, ArrayList<String>> {
     val questions = ArrayList<String>()
     val correctAnswers = ArrayList<String>()
 
     try {
-        val inputStream = context.assets.open("dataset_pengujian.csv")
-        val reader = BufferedReader(InputStreamReader(inputStream))
+        // Membuka file XLSX dari assets
+        val inputStream: InputStream = context.assets.open("dataset_pengujian.xlsx")
+        val workbook: Workbook = WorkbookFactory.create(inputStream)
 
-        var line: String? = reader.readLine()
-        // Lewatin header (question;correct_answer)
-        if (line != null) {
-            line = reader.readLine()
-        }
+        // Mengambil sheet pertama
+        val sheet: Sheet = workbook.getSheetAt(0)
 
-        while (line != null) {
-            val parts = line.split(";")
-            if (parts.size >= 2) {
-                val question = parts[0].trim()
-                val correctAnswer = parts[1].trim()
+        // Membaca setiap baris dalam sheet
+        for (rowIndex in 1 until sheet.physicalNumberOfRows) { // Mulai dari 1 untuk melewati header
+            val row: Row = sheet.getRow(rowIndex)
 
+            if (row != null) {
+                // Mendapatkan kolom pertama (question) dan kedua (correct_answer)
+                val question = row.getCell(0)?.toString()?.trim() ?: ""
+                val correctAnswer = row.getCell(1)?.toString()?.trim() ?: ""
+
+                // Menambahkan ke list
                 questions.add(question)
                 correctAnswers.add(correctAnswer)
             }
-            line = reader.readLine()
         }
 
-        reader.close()
-    } catch (e: Exception) {
+        workbook.close()
+        inputStream.close()
+
+    } catch (e: InvalidFormatException) {
+        e.printStackTrace()
+    } catch (e: IOException) {
         e.printStackTrace()
     }
 
@@ -268,7 +280,7 @@ private fun QueryInput(
     val keyboardController = LocalSoftwareKeyboardController.current
 
     // Daftar query yang akan diproses
-    val (questions, correctAnswers) = loadQuestionsAndAnswers(context)
+    val (questions, correctAnswers) = loadQuestionsAndAnswersFromXlsx(context)
 
     for (i in questions.indices) {
         Log.d("QUESTION", questions[i])

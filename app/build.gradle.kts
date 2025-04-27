@@ -153,6 +153,8 @@ dependencies {
     testImplementation("org.robolectric:robolectric:4.7.3")
     implementation("com.google.code.gson:gson:2.10.1")
 
+    // xlsx
+    implementation("org.apache.poi:poi-ooxml:5.2.3")
 }
 
 apply(plugin = "io.objectbox")

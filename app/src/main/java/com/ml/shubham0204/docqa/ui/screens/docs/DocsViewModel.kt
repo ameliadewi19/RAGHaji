@@ -115,7 +115,7 @@ class DocsViewModel(
         setProgressDialogText("Creating chunks...")
         val chunks = SlidingWindowChunker.createSlidingChunks(
             docText = text,
-            windowSize = 128,
+            windowSize = 256,
             step = 20
         )
 
