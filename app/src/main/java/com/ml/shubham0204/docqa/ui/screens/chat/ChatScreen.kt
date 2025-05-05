@@ -281,6 +281,7 @@ private fun QueryInput(
 
     // Daftar query yang akan diproses
     val (questions, correctAnswers) = loadQuestionsAndAnswersFromXlsx(context)
+    val correctAnswerDump = ""
 
     for (i in questions.indices) {
         Log.d("QUESTION", questions[i])
@@ -304,87 +305,51 @@ private fun QueryInput(
             placeholder = { Text(text = "Ask documents...") },
         )
         Spacer(modifier = Modifier.width(8.dp))
-//        IconButton(
-//            modifier = Modifier.testTag("send_button").background(Color.Blue, CircleShape),
-//            onClick = {
-//                keyboardController?.hide()
-////                if (!chatViewModel.checkNumDocuments()) {
-////                    Toast
-////                        .makeText(context, "Add documents to execute queries", Toast.LENGTH_LONG)
-////                        .show()
-////                    return@IconButton
-////                }
-////                if (!chatViewModel.checkValidAPIKey()) {
-////                    createAlertDialog(
-////                        dialogTitle = "Invalid API Key",
-////                        dialogText = "Please enter a Gemini API key to use a LLM for generating responses.",
-////                        dialogPositiveButtonText = "Add API key",
-////                        onPositiveButtonClick = onEditAPIKeyClick,
-////                        dialogNegativeButtonText = "Open Gemini Console",
-////                        onNegativeButtonClick = {
-////                            Intent(Intent.ACTION_VIEW).apply {
-////                                data = "https://aistudio.google.com/apikey".toUri()
-////                                context.startActivity(this)
-////                            }
-////                        },
-////                    )
-////                    return@IconButton
-////                }
-//                if (questionText.trim().isEmpty()) {
-//                    Toast.makeText(context, "Enter a query to execute", Toast.LENGTH_LONG).show()
-//                    return@IconButton
-//                }
-//                try {
-//                    // Loop untuk mengirimkan setiap query
-//                    queries.forEach { query ->
-//                        chatViewModel.getAnswer(
-//                            query,
-//                            context.getString(R.string.prompt_1),
-//                        )
-//                    }
-//                } catch (e: Exception) {
-//                    createAlertDialog(
-//                        dialogTitle = "Error",
-//                        dialogText = "An error occurred while generating the response: ${e.message}",
-//                        dialogPositiveButtonText = "Close",
-//                        onPositiveButtonClick = {},
-//                        dialogNegativeButtonText = null,
-//                        onNegativeButtonClick = {},
-//                    )
-//                }
-//            },
-//        ) {
-//            Icon(
-//                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-//                contentDescription = "Send query",
-//                tint = Color.White,
-//            )
-//        }
-        val scope = rememberCoroutineScope()
-
         IconButton(
             modifier = Modifier.testTag("send_button").background(Color.Blue, CircleShape),
             onClick = {
                 keyboardController?.hide()
-
+//                if (!chatViewModel.checkNumDocuments()) {
+//                    Toast
+//                        .makeText(context, "Add documents to execute queries", Toast.LENGTH_LONG)
+//                        .show()
+//                    return@IconButton
+//                }
+//                if (!chatViewModel.checkValidAPIKey()) {
+//                    createAlertDialog(
+//                        dialogTitle = "Invalid API Key",
+//                        dialogText = "Please enter a Gemini API key to use a LLM for generating responses.",
+//                        dialogPositiveButtonText = "Add API key",
+//                        onPositiveButtonClick = onEditAPIKeyClick,
+//                        dialogNegativeButtonText = "Open Gemini Console",
+//                        onNegativeButtonClick = {
+//                            Intent(Intent.ACTION_VIEW).apply {
+//                                data = "https://aistudio.google.com/apikey".toUri()
+//                                context.startActivity(this)
+//                            }
+//                        },
+//                    )
+//                    return@IconButton
+//                }
                 if (questionText.trim().isEmpty()) {
                     Toast.makeText(context, "Enter a query to execute", Toast.LENGTH_LONG).show()
                     return@IconButton
                 }
-
-                scope.launch {
-                    questions.zip(correctAnswers).forEach { (question, correctAnswer) ->  // Pair question sama answer
-                        chatViewModel.getAnswer(
-                            question,
-                            context.getString(R.string.prompt_1),
-                            correctAnswer // <-- kirim correctAnswer-nya
+                try {
+                    chatViewModel.getAnswer(
+                        questionText,
+                        context.getString(R.string.prompt_1),
+                        correctAnswerDump
                         )
-
-                        while (chatViewModel.isGeneratingResponseState.value) {
-                            delay(100)
-                        }
-                        delay(300)
-                    }
+                } catch (e: Exception) {
+                    createAlertDialog(
+                        dialogTitle = "Error",
+                        dialogText = "An error occurred while generating the response: ${e.message}",
+                        dialogPositiveButtonText = "Close",
+                        onPositiveButtonClick = {},
+                        dialogNegativeButtonText = null,
+                        onNegativeButtonClick = {},
+                    )
                 }
             },
         ) {
@@ -394,6 +359,40 @@ private fun QueryInput(
                 tint = Color.White,
             )
         }
+//        val scope = rememberCoroutineScope()
+//
+//        IconButton(
+//            modifier = Modifier.testTag("send_button").background(Color.Blue, CircleShape),
+//            onClick = {
+//                keyboardController?.hide()
+//
+//                if (questionText.trim().isEmpty()) {
+//                    Toast.makeText(context, "Enter a query to execute", Toast.LENGTH_LONG).show()
+//                    return@IconButton
+//                }
+//
+//                scope.launch {
+//                    questions.zip(correctAnswers).forEach { (question, correctAnswer) ->  // Pair question sama answer
+//                        chatViewModel.getAnswer(
+//                            question,
+//                            context.getString(R.string.prompt_1),
+//                            correctAnswer // <-- kirim correctAnswer-nya
+//                        )
+//
+//                        while (chatViewModel.isGeneratingResponseState.value) {
+//                            delay(100)
+//                        }
+//                        delay(300)
+//                    }
+//                }
+//            },
+//        ) {
+//            Icon(
+//                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+//                contentDescription = "Send query",
+//                tint = Color.White,
+//            )
+//        }
 
     }
 }
