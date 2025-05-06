@@ -215,10 +215,8 @@ private fun DocOperations(docsViewModel: DocsViewModel) {
                 context.contentResolver.openInputStream(uri)?.let { inputStream ->
                     showProgressDialog()
                     CoroutineScope(Dispatchers.IO).launch {
-                        docsViewModel.addDocument(
-                            inputStream,
-                            docFileName,
-                            docType,
+                        docsViewModel.addDocumentFromAssets(
+                            context, "chunks/fixed_128.json"
                         )
                         withContext(Dispatchers.IO) {
                             hideProgressDialog()
@@ -238,9 +236,13 @@ private fun DocOperations(docsViewModel: DocsViewModel) {
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6650a4)),
             onClick = {
                 docType = Readers.DocumentType.PDF
-                launcher.launch(
-                    Intent(Intent.ACTION_GET_CONTENT).apply { type = "application/pdf" },
-                )
+                showProgressDialog()
+                CoroutineScope(Dispatchers.IO).launch {
+                    docsViewModel.addDocumentFromAssets(context, "chunks/fixed_128.json")
+                    withContext(Dispatchers.Main) {
+                        hideProgressDialog()
+                    }
+                }
             },
         ) {
             Icon(imageVector = Icons.Default.Add, contentDescription = "Add PDF document", tint = Color.White)

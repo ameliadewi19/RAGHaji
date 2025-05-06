@@ -7,11 +7,11 @@ import com.ml.shubham0204.docqa.data.Chunk
 import com.ml.shubham0204.docqa.data.ChunksDB
 import com.ml.shubham0204.docqa.data.Document
 import com.ml.shubham0204.docqa.data.DocumentsDB
+import com.ml.shubham0204.docqa.di.Utils
 import com.ml.shubham0204.docqa.domain.embeddings.SentenceEmbeddingProvider
 import com.ml.shubham0204.docqa.domain.readers.Readers
 import com.ml.shubham0204.docqa.domain.splitters.SlidingWindowChunker
-import com.ml.shubham0204.docqa.domain.splitters.Small2BigChunker
-import com.ml.shubham0204.docqa.domain.splitters.WhiteSpaceSplitter
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -22,6 +22,7 @@ import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.MalformedURLException
 import java.net.URL
+import java.util.UUID
 import kotlin.math.min
 
 @KoinViewModel
@@ -145,6 +146,53 @@ class DocsViewModel(
             )
         }
 
+    }
+
+    suspend fun addDocumentFromAssets(
+        context: Context,
+        fileName: String,
+    ) = withContext(Dispatchers.IO) {
+        chunksDB.clearChunks()
+
+        val chunks = Utils.readChunksFromAssets(context, fileName)
+
+        val newDocId = documentsDB.addDocument(
+            Document(
+                docText = "",
+                docFileName = fileName,
+                docAddedTime = System.currentTimeMillis(),
+            )
+        )
+
+        setProgressDialogText("Adding chunks to database...")
+
+        val size = chunks.size
+        chunks.forEachIndexed { index, chunkJson ->
+            setProgressDialogText("Added ${index + 1}/$size chunk(s) to database...")
+
+            val embedding = sentenceEncoder.encodeText(chunkJson.chunk)
+
+            chunksDB.addChunk(
+                Chunk(
+                    docId = newDocId,
+                    docFileName = fileName,
+                    chunkData = chunkJson.chunk,
+                    chunkEmbedding = embedding,
+                    chunkSize = chunkJson.chunk.length,
+                    chunkUuid = UUID.randomUUID().toString(),
+                    parentChunkId = null
+                )
+            )
+        }
+
+        Log.d("ChunkDebug", "=== CHUNK From Assets JSON ===")
+        chunks.forEachIndexed { index, chunkJson ->
+            Log.d(
+                "ChunkDebug",
+                "Chunk ${index + 1} (size=${chunkJson.chunk.length}, text: ${chunkJson.chunk})"
+            )
+        }
+        Log.d("ChunkDebug", "=== TOTAL CHUNKS: ${chunks.size} ===")
     }
 
 //    suspend fun addDocument(context: Context) = withContext(Dispatchers.IO) {
