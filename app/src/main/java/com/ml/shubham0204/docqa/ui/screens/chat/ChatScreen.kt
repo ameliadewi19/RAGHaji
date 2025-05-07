@@ -385,7 +385,7 @@ private fun QueryInput(
                     return@IconButton
                 }
                 try {
-                    chatViewModel.getAnswer(
+                    chatViewModel.getAnswerSparse(
                         questionText,
                         context.getString(R.string.prompt_1),
                         correctAnswerDump

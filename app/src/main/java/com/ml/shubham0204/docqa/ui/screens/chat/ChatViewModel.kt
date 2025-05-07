@@ -17,7 +17,7 @@ import kotlinx.coroutines.withContext
 import org.koin.android.annotation.KoinViewModel
 import android.content.Context
 import android.util.Log
-
+import com.ml.shubham0204.docqa.domain.retrievers.LuceneIndexer
 
 @KoinViewModel
 class ChatViewModel(
@@ -38,6 +38,8 @@ class ChatViewModel(
 
     private val _retrievedContextListState = MutableStateFlow(emptyList<RetrievedContext>())
     val retrievedContextListState: StateFlow<List<RetrievedContext>> = _retrievedContextListState
+
+    private val luceneIndexer = LuceneIndexer
 
 //    fun getAnswer(
 //        query: String,
@@ -251,6 +253,76 @@ class ChatViewModel(
             }
         }
     }
+
+    fun getAnswerSparse(
+        query: String,
+        prompt: String,
+        correctAnswer: String
+    ) {
+        if (luceneIndexer.isIndexInitialized()) {
+            val indexSearcher = luceneIndexer.indexSearcher
+            if (indexSearcher != null) {
+                // Lakukan pencarian dengan indexSearcher
+            } else {
+                Log.e("LuceneOptimized", "IndexSearcher is null")
+            }
+        } else {
+            Log.e("LuceneOptimized", "Index belum siap untuk pencarian")
+        }
+
+        val retrieveStart = System.currentTimeMillis()
+
+        val llamaRemoteAPI = LlamaRemoteAPI(context)
+        _isGeneratingResponseState.value = true
+        _questionState.value = query
+        _responseState.value = ""
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Ambil N chunk terdekat dari Lucene
+                val retrievedChunks = chunksDB.getSimilarChunksLuceneOptimized(context, query, n = 3)
+
+                val retrievedContextList = ArrayList<RetrievedContext>()
+                var jointContext = ""
+
+                for ((_, chunk) in retrievedChunks) {
+                    jointContext += " " + chunk.chunkData
+                    retrievedContextList.add(RetrievedContext(chunk.docFileName, chunk.chunkData))
+                }
+
+                val retrieveDuration = System.currentTimeMillis() - retrieveStart
+                Log.d("ChatViewModel", "Waktu retrieve konteks (Lucene): $retrieveDuration ms")
+
+                val inputPrompt = """
+            Konteks:
+            $jointContext
+
+            ===
+            Query dari konteks di atas yaitu:
+            $query
+
+            ===
+            Gunakan konteks sebagai jawaban dengan menyimpulkan konteks, tanpa mengulang jawaban yang sama.
+                - Jika pertanyaan menanyakan **pengertian/definisi**, berikan hanya pengertian tanpa penjelasan tambahan.
+                - Jika pertanyaan menanyakan **tujuan, manfaat, hukum, atau tata cara**, berikan jawaban yang relevan dan ringkas dari konteks.
+            """
+
+                llamaRemoteAPI.getResponsePerToken(inputPrompt, query, correctAnswer, retrieveDuration) { token ->
+                    _responseState.value += token
+                    Log.d("STREAM TOKEN", "$token")
+                }
+
+                _retrievedContextListState.value = retrievedContextList
+
+            } catch (e: Exception) {
+                _responseState.value = "Error: ${e.message}"
+                _retrievedContextListState.value = emptyList()
+            } finally {
+                _isGeneratingResponseState.value = false
+            }
+        }
+    }
+
 
 //    fun getAnswer(
 //        query: String,
