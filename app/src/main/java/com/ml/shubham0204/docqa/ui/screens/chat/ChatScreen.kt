@@ -147,30 +147,27 @@ private fun ColumnScope.QALayout(chatViewModel: ChatViewModel) {
             LazyColumn {
                 item {
                     Text(text = question, style = MaterialTheme.typography.headlineLarge)
+                    Spacer(modifier = Modifier.height(4.dp))
                     if (isGeneratingResponse) {
-                        Spacer(modifier = Modifier.height(4.dp))
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }
-                }
-                item {
-                    if (!isGeneratingResponse) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Column(
-                            modifier =
-                                Modifier
-                                    .background(Color.White, RoundedCornerShape(16.dp))
-                                    .padding(24.dp)
-                                    .fillMaxWidth(),
-                        ) {
-                            MarkdownText(
-                                modifier = Modifier.fillMaxWidth(),
-                                markdown = response,
-                                style =
-                                    TextStyle(
-                                        color = Color.Black,
-                                        fontSize = 14.sp,
-                                    ),
-                            )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Column(
+                        modifier =
+                            Modifier
+                                .background(Color.White, RoundedCornerShape(16.dp))
+                                .padding(24.dp)
+                                .fillMaxWidth(),
+                    ) {
+                        MarkdownText(
+                            modifier = Modifier.fillMaxWidth(),
+                            markdown = response,
+                            style = TextStyle(
+                                color = Color.Black,
+                                fontSize = 14.sp,
+                            ),
+                        )
+                        if (!isGeneratingResponse) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.End,
@@ -195,37 +192,89 @@ private fun ColumnScope.QALayout(chatViewModel: ChatViewModel) {
                                 }
                             }
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "Context", style = MaterialTheme.typography.headlineSmall)
-                        Spacer(modifier = Modifier.height(4.dp))
                     }
                 }
-                if (!isGeneratingResponse) {
-                    items(retrievedContextList) { retrievedContext ->
-                        Column(
-                            modifier =
-                                Modifier
-                                    .padding(8.dp)
-                                    .background(Color.Cyan, RoundedCornerShape(16.dp))
-                                    .padding(16.dp)
-                                    .fillMaxWidth(),
-                        ) {
-                            Text(
-                                text = "\"${retrievedContext.context}\"",
-                                color = Color.Black,
-                                modifier = Modifier.fillMaxWidth(),
-                                fontSize = 12.sp,
-                                fontStyle = FontStyle.Italic,
-                            )
-                            Text(
-                                text = retrievedContext.fileName,
-                                color = Color.Black,
-                                modifier = Modifier.fillMaxWidth(),
-                                fontSize = 10.sp,
-                            )
-                        }
-                    }
-                }
+//                item {
+//                    Text(text = question, style = MaterialTheme.typography.headlineLarge)
+//                    if (isGeneratingResponse) {
+//                        Spacer(modifier = Modifier.height(4.dp))
+//                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+//                    }
+//                }
+//                item {
+//                    if (!isGeneratingResponse) {
+//                        Spacer(modifier = Modifier.height(16.dp))
+//                        Column(
+//                            modifier =
+//                                Modifier
+//                                    .background(Color.White, RoundedCornerShape(16.dp))
+//                                    .padding(24.dp)
+//                                    .fillMaxWidth(),
+//                        ) {
+//                            MarkdownText(
+//                                modifier = Modifier.fillMaxWidth(),
+//                                markdown = response,
+//                                style =
+//                                    TextStyle(
+//                                        color = Color.Black,
+//                                        fontSize = 14.sp,
+//                                    ),
+//                            )
+//                            Row(
+//                                modifier = Modifier.fillMaxWidth(),
+//                                horizontalArrangement = Arrangement.End,
+//                            ) {
+//                                IconButton(
+//                                    onClick = {
+//                                        val sendIntent: Intent =
+//                                            Intent().apply {
+//                                                action = Intent.ACTION_SEND
+//                                                putExtra(Intent.EXTRA_TEXT, response)
+//                                                type = "text/plain"
+//                                            }
+//                                        val shareIntent = Intent.createChooser(sendIntent, null)
+//                                        context.startActivity(shareIntent)
+//                                    },
+//                                ) {
+//                                    Icon(
+//                                        imageVector = Icons.Default.Share,
+//                                        contentDescription = "Share the response",
+//                                        tint = Color.Black,
+//                                    )
+//                                }
+//                            }
+//                        }
+//                        Spacer(modifier = Modifier.height(8.dp))
+//                        Text(text = "Context", style = MaterialTheme.typography.headlineSmall)
+//                        Spacer(modifier = Modifier.height(4.dp))
+//                    }
+//                }
+//                if (!isGeneratingResponse) {
+//                    items(retrievedContextList) { retrievedContext ->
+//                        Column(
+//                            modifier =
+//                                Modifier
+//                                    .padding(8.dp)
+//                                    .background(Color.Cyan, RoundedCornerShape(16.dp))
+//                                    .padding(16.dp)
+//                                    .fillMaxWidth(),
+//                        ) {
+//                            Text(
+//                                text = "\"${retrievedContext.context}\"",
+//                                color = Color.Black,
+//                                modifier = Modifier.fillMaxWidth(),
+//                                fontSize = 12.sp,
+//                                fontStyle = FontStyle.Italic,
+//                            )
+//                            Text(
+//                                text = retrievedContext.fileName,
+//                                color = Color.Black,
+//                                modifier = Modifier.fillMaxWidth(),
+//                                fontSize = 10.sp,
+//                            )
+//                        }
+//                    }
+//                }
             }
         }
     }

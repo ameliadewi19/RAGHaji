@@ -35,14 +35,33 @@ import kotlinx.coroutines.withContext
 class MainActivity : ComponentActivity() {
 
 //    private val chatViewModel: ChatViewModel by viewModel()
-
+    private lateinit var chunksDB: ChunksDB
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        chunksDB = ChunksDB()
+
 //        if (! Python.isStarted()) {
 //            Python.start(AndroidPlatform(this))
 //        }
 //        val py = Python.getInstance()
         enableEdgeToEdge()
+
+        // Jalankan indexing & query di background
+        lifecycleScope.launch(Dispatchers.IO) {
+            chunksDB.buildInvertedIndex()
+
+            val query = "Bagaimana bentuk pakaian ihram bagi laki-laki dan perempuan?"
+            Log.d("SearchResult", "Test result")
+
+            val results = chunksDB.getSimilarChunksBM25Optimized(this@MainActivity, query, n = 5)
+
+            // Log hasil di main thread
+            withContext(Dispatchers.Main) {
+                results.forEach { (score, chunk) ->
+                    Log.d("SearchResult", "Score: $score, Text: ${chunk.chunkData}")
+                }
+            }
+        }
 
         setContent {
             val navHostController = rememberNavController()

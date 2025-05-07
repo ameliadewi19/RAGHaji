@@ -95,6 +95,35 @@ class ChatViewModel(
 //        }
 //    }
 
+    fun expandQuery(userQuery: String): String {
+        // Mengubah input ke format huruf kecil dan menghilangkan spasi di awal/akhir
+        var query = userQuery.lowercase().trim()
+
+        // Deteksi tipe pertanyaan
+        if (query.startsWith("apa yang dimaksud dengan") || query.startsWith("apa itu") || query.contains("jelaskan tentang")) {
+            // Ekstrak keyword utama
+            var keyword = query.replace("apa yang dimaksud dengan", "")
+                .replace("apa itu", "")
+                .replace("jelaskan tentang", "")
+                .trim { it <= ' ' || it == '?' || it == '.' }
+
+            // Template untuk definisi
+            val expansions = listOf(
+                userQuery,
+                "Kata $keyword berasal dari kata",
+                "Menurut istilah, $keyword",
+                "$keyword adalah",
+                "$keyword merupakan",
+                "$keyword berarti",
+            )
+
+            return expansions.joinToString(". ") + "."
+        } else {
+            // Jika bukan pertanyaan definisi, kembalikan query asli
+            return userQuery
+        }
+    }
+
     fun getAnswer(
         query: String,
         prompt: String,
@@ -109,7 +138,10 @@ class ChatViewModel(
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val queryEmbedding = sentenceEncoder.encodeText(query)
+//                val queryDump = "Apa yang dimaksud dengan ihram? Kata Ihram berasal dari kata, Sedangkan menurut istilah, ihrām"
+                val expandedQuery = expandQuery(query)
+                Log.d("EXPANDED QUERY", "$expandedQuery")
+                val queryEmbedding = sentenceEncoder.encodeText(expandedQuery)
                 val retrievedChunks = chunksDB.getSimilarChunks(queryEmbedding, n = 3)
 
                 val retrievedContextList = ArrayList<RetrievedContext>()
@@ -124,7 +156,41 @@ class ChatViewModel(
                 val retrieveDuration = System.currentTimeMillis() - retrieveStart
                 Log.d("ChatViewModel", "Waktu retrieve konteks: $retrieveDuration ms")
 
-                val inputPrompt = """
+//                val inputPrompt = """
+//Berikut adalah tiga potong teks konteks yang berisi informasi terkait pertanyaan berikut:
+//
+//=== Konteks ===
+//$jointContext
+//===============
+//
+//Pertanyaan: $query
+//
+//Tugas Anda adalah menjawab pertanyaan di atas hanya berdasarkan informasi yang terdapat dalam konteks.
+//Perhatikan jenis pertanyaannya, dan jawab sesuai dengan jenis tersebut:
+//
+//- Jika pertanyaan menanyakan **pengertian/definisi**, berikan hanya pengertian tanpa penjelasan tambahan.
+//- Jika pertanyaan menanyakan **tujuan, manfaat, hukum, atau tata cara**, berikan jawaban yang relevan dan ringkas dari konteks.
+//- Jangan menyisipkan opini, interpretasi tambahan, atau informasi di luar konteks.
+//
+//Jawaban:
+//"""
+
+//                val inputPrompt = """
+//            Berikut adalah konteks yang berisi informasi tentang ihram:
+//
+//            === Konteks ===
+//            $jointContext
+//            ===============
+//
+//            Pertanyaan: $query
+//
+//            Jawablah dengan mengambil $query saja dari konteks di atas. Jangan sertakan informasi lain seperti larangan, sunah, atau panduan ritual selain pengertian ihram.
+//
+//            Jawaban:
+//
+//            """
+
+                                val inputPrompt = """
             Konteks:
             $jointContext
 
@@ -133,8 +199,40 @@ class ChatViewModel(
             $query
 
             ===
-            Gunakan konteks sebagai jawaban dengan menyimpulkan dari ketiga konteks, tanpa mengulang jawaban yang sama.
+            Gunakan konteks sebagai jawaban dengan menyimpulkan konteks, tanpa mengulang jawaban yang sama.
+                - Jika pertanyaan menanyakan **pengertian/definisi**, berikan hanya pengertian tanpa penjelasan tambahan.
+                - Jika pertanyaan menanyakan **tujuan, manfaat, hukum, atau tata cara**, berikan jawaban yang relevan dan ringkas dari konteks.
             """
+
+//                val inputPrompt = """
+//            Konteks:
+//            $jointContext
+//
+//            ===
+//            Query dari konteks diatas yaitu:
+//            $query
+//
+//            ===
+//            Gunakan konteks sebagai jawaban dengan menyimpulkan dari ketiga konteks, tanpa mengulang jawaban yang sama.
+//            """
+
+//                val inputPrompt = """
+//            Berikut adalah tiga potong teks konteks yang berisi informasi tentang ihram:
+//
+//            === Konteks ===
+//            $jointContext
+//            ===============
+//
+//            Pertanyaan: $query
+//
+//            Tugas Anda adalah menjawab pertanyaan di atas hanya berdasarkan informasi yang terdapat dalam konteks.
+//
+//            Jawaban:
+//
+//            """
+
+
+//                Gunakan konteks sebagai jawaban dengan menyimpulkan dari ketiga konteks, tanpa mengulang jawaban yang sama.
 
                 // Start streaming response
                 llamaRemoteAPI.getResponsePerToken(inputPrompt, query, correctAnswer, retrieveDuration) { token ->
