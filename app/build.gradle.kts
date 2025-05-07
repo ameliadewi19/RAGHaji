@@ -155,6 +155,11 @@ dependencies {
 
     // xlsx
     implementation("org.apache.poi:poi-ooxml:5.2.3")
+
+    // lucene
+    implementation("org.apache.lucene:lucene-core:8.11.1")
+    implementation("org.apache.lucene:lucene-analyzers-common:8.11.1")
+    implementation("org.apache.lucene:lucene-queryparser:8.11.1")
 }
 
 apply(plugin = "io.objectbox")
