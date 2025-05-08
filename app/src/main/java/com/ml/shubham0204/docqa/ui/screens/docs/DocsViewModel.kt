@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.ml.shubham0204.docqa.data.Chunk
+import com.ml.shubham0204.docqa.data.ChunkNode
 import com.ml.shubham0204.docqa.data.ChunksDB
 import com.ml.shubham0204.docqa.data.Document
 import com.ml.shubham0204.docqa.data.DocumentsDB
@@ -140,7 +141,7 @@ class DocsViewModel(
                 Chunk(
                     docId = newDocId,
                     docFileName = fileName,
-                    chunkData = chunkText,
+                    chunkText = chunkText,
                     chunkEmbedding = embedding,
                 )
             )
@@ -170,17 +171,14 @@ class DocsViewModel(
         chunks.forEachIndexed { index, chunkJson ->
             setProgressDialogText("Added ${index + 1}/$size chunk(s) to database...")
 
-            val embedding = sentenceEncoder.encodeText(chunkJson.chunk)
+            val embedding = sentenceEncoder.encodeText(chunkJson.chunk_text)
 
             chunksDB.addChunk(
                 Chunk(
-                    docId = newDocId,
-                    docFileName = fileName,
-                    chunkData = chunkJson.chunk,
+                    Id = chunkJson.id,
+                    parentChunkId = chunkJson.parent_id,
+                    chunkText = chunkJson.chunk_text,
                     chunkEmbedding = embedding,
-                    chunkSize = chunkJson.chunk.length,
-                    chunkUuid = UUID.randomUUID().toString(),
-                    parentChunkId = null
                 )
             )
         }
@@ -189,7 +187,8 @@ class DocsViewModel(
         chunks.forEachIndexed { index, chunkJson ->
             Log.d(
                 "ChunkDebug",
-                "Chunk ${index + 1} (size=${chunkJson.chunk.length}, text: ${chunkJson.chunk})"
+                "Chunk ${index + 1} \nchunkId=${chunkJson.id}  \n" +
+                        "parentId=${chunkJson.parent_id} (size=${chunkJson.chunk_text.length}, text: ${chunkJson.chunk_text})"
             )
         }
         Log.d("ChunkDebug", "=== TOTAL CHUNKS: ${chunks.size} ===")

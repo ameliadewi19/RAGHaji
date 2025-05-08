@@ -212,47 +212,106 @@ class ChatViewModel(
 //        }
 //    }
 
+//    fun getAnswer(
+//        query: String,
+//        prompt: String, // prompt bisa berisi placeholder seperti $CONTEXT dan $QUERY
+//    ) {
+//        val llamaRemoteAPI = LlamaRemoteAPI(context)
+//        _isGeneratingResponseState.value = true
+//        _questionState.value = query
+//
+//        CoroutineScope(Dispatchers.IO).launch {
+//            try {
+//                // 1. Buat embedding dari query
+//                val queryEmbedding = sentenceEncoder.encodeText(query)
+//
+//                // 2. Ambil top 5 context dari DB
+//                val retrievedChunks = chunksDB.getSimilarChunks(queryEmbedding, n = 3)
+//                val retrievedContextList = ArrayList<RetrievedContext>()
+//                var jointContext = ""
+//
+//                for ((_, chunk) in retrievedChunks) {
+//                    jointContext += " " + chunk.chunkData
+//                    retrievedContextList.add(RetrievedContext(chunk.docFileName, chunk.chunkData))
+//                }
+//
+//                // 3. Bangun prompt final dengan konteks dan query
+//
+//                val inputPrompt = """
+//                    Konteks:
+//                    $jointContext
+//
+//                    ===
+//                    Query dari konteks diatas yaitu:
+//                    $query
+//
+//                    ===
+//                    Gunakan konteks sebagai jawaban dengan menyimpulkan dari ketiga konteks, tanpa mengulang jawaban yang sama.
+//                """
+//                // 4. Kirim ke LLM API
+//                llamaRemoteAPI.getResponse(inputPrompt)?.let { llmResponse ->
+//                    _responseState.value = llmResponse
+//                    _retrievedContextListState.value = retrievedContextList
+//                }
+//            } catch (e: Exception) {
+//                _responseState.value = "Error: ${e.message}"
+//                _retrievedContextListState.value = emptyList()
+//            } finally {
+//                _isGeneratingResponseState.value = false
+//            }
+//        }
+//    }
+
     fun getAnswer(
         query: String,
-        prompt: String, // prompt bisa berisi placeholder seperti $CONTEXT dan $QUERY
+        prompt: String,
+        correctAnswer: String
     ) {
+        val retrieveStart = System.currentTimeMillis()
+
         val llamaRemoteAPI = LlamaRemoteAPI(context)
         _isGeneratingResponseState.value = true
         _questionState.value = query
+        _responseState.value = "" // Kosongkan response sebelumnya sebelum mulai
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // 1. Buat embedding dari query
                 val queryEmbedding = sentenceEncoder.encodeText(query)
-
-                // 2. Ambil top 5 context dari DB
                 val retrievedChunks = chunksDB.getSimilarChunks(queryEmbedding, n = 3)
+
                 val retrievedContextList = ArrayList<RetrievedContext>()
                 var jointContext = ""
 
                 for ((_, chunk) in retrievedChunks) {
-                    jointContext += " " + chunk.chunkData
-                    retrievedContextList.add(RetrievedContext(chunk.docFileName, chunk.chunkData))
+                    Log.d("CHUNK","${chunk.chunkText}")
+                    jointContext += " " + chunk.chunkText
+                    retrievedContextList.add(RetrievedContext(chunk.docFileName, chunk.chunkText))
                 }
 
-                // 3. Bangun prompt final dengan konteks dan query
+                val retrieveDuration = System.currentTimeMillis() - retrieveStart
+                Log.d("ChatViewModel", "Waktu retrieve konteks: $retrieveDuration ms")
 
                 val inputPrompt = """
-                    Konteks:
-                    $jointContext
-                    
-                    ===
-                    Query dari konteks diatas yaitu:
-                    $query
-                    
-                    ===
-                    Gunakan konteks sebagai jawaban dengan menyimpulkan dari ketiga konteks, tanpa mengulang jawaban yang sama.
-                """
-                // 4. Kirim ke LLM API
-                llamaRemoteAPI.getResponse(inputPrompt)?.let { llmResponse ->
-                    _responseState.value = llmResponse
-                    _retrievedContextListState.value = retrievedContextList
+            Konteks:
+            $jointContext
+
+            ===
+            Query dari konteks diatas yaitu:
+            $query
+
+            ===
+            Gunakan konteks sebagai jawaban dengan menyimpulkan dari ketiga konteks, tanpa mengulang jawaban yang sama.
+            """
+
+                // Start streaming response
+                llamaRemoteAPI.getResponsePerToken(inputPrompt, query, correctAnswer, retrieveDuration) { token ->
+                    // Update response state per token
+                    _responseState.value += token
+                    Log.d("STREAM TOKEN", "$token")
                 }
+
+                _retrievedContextListState.value = retrievedContextList
+
             } catch (e: Exception) {
                 _responseState.value = "Error: ${e.message}"
                 _retrievedContextListState.value = emptyList()
