@@ -281,6 +281,7 @@ private fun QueryInput(
 
     // Daftar query yang akan diproses
     val (questions, correctAnswers) = loadQuestionsAndAnswersFromXlsx(context)
+    val correctAnswerDump = ""
 
     for (i in questions.indices) {
         Log.d("QUESTION", questions[i])
@@ -338,6 +339,7 @@ private fun QueryInput(
                     chatViewModel.getAnswer(
                         questionText,
                         context.getString(R.string.prompt_1),
+                        correctAnswerDump
                     )
                 } catch (e: Exception) {
                     createAlertDialog(
