@@ -63,6 +63,16 @@ import org.koin.androidx.compose.koinViewModel
 
 import android.content.Context
 import android.util.Log
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.input.KeyboardType
 import org.apache.commons.compress.archivers.dump.InvalidFormatException
 import org.apache.poi.ss.usermodel.Row
 import org.apache.poi.ss.usermodel.Sheet
@@ -102,18 +112,91 @@ fun ChatScreen(
                 )
             },
         ) { innerPadding ->
-            Column(modifier = Modifier.padding(innerPadding).padding(16.dp).fillMaxWidth()) {
-                val chatViewModel: ChatViewModel = koinViewModel()
-                Column {
-                    QALayout(chatViewModel)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    QueryInput(chatViewModel, onEditAPIKeyClick)
+
+            val chatViewModel: ChatViewModel = koinViewModel()
+            val context = LocalContext.current
+
+            // --- Dropdown state ---
+            var selectedIndexType by remember { mutableStateOf("Hybrid") }
+            val indexOptions = listOf("Hybrid", "Sparse", "Dense")
+            var expanded by remember { mutableStateOf(false) }
+
+            // --- Top K input state ---
+            var topKText by remember { mutableStateOf("3") }
+            val topK = topKText.toIntOrNull() ?: 3
+
+            Column(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .padding(16.dp)
+                    .fillMaxWidth()
+            ) {
+                // Index Type Dropdown
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    OutlinedTextField(
+                        value = selectedIndexType,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Index Type") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        indexOptions.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option) },
+                                onClick = {
+                                    selectedIndexType = option
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Top K Input
+                OutlinedTextField(
+                    value = topKText,
+                    onValueChange = { newValue ->
+                        if (newValue.all { it.isDigit() }) {
+                            topKText = newValue
+                        }
+                    },
+                    label = { Text("Top K") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                QALayout(chatViewModel)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                QueryInput(
+                    chatViewModel = chatViewModel,
+                    onEditAPIKeyClick = onEditAPIKeyClick,
+                    indexType = selectedIndexType,
+                    topK = topK
+                )
             }
+
             AppAlertDialog()
         }
     }
 }
+
 
 @Composable
 private fun ColumnScope.QALayout(chatViewModel: ChatViewModel) {
@@ -194,6 +277,34 @@ private fun ColumnScope.QALayout(chatViewModel: ChatViewModel) {
                         }
                     }
                 }
+
+                if (!isGeneratingResponse) {
+                    items(retrievedContextList) { retrievedContext ->
+                        Column(
+                            modifier =
+                                Modifier
+                                    .padding(8.dp)
+                                    .background(Color.Cyan, RoundedCornerShape(16.dp))
+                                    .padding(16.dp)
+                                    .fillMaxWidth(),
+                        ) {
+                            Text(
+                                text = "\"${retrievedContext.context}\"",
+                                color = Color.Black,
+                                modifier = Modifier.fillMaxWidth(),
+                                fontSize = 12.sp,
+                                fontStyle = FontStyle.Italic,
+                            )
+                            Text(
+                                text = retrievedContext.fileName,
+                                color = Color.Black,
+                                modifier = Modifier.fillMaxWidth(),
+                                fontSize = 10.sp,
+                            )
+                        }
+                    }
+                }
+
 //                item {
 //                    Text(text = question, style = MaterialTheme.typography.headlineLarge)
 //                    if (isGeneratingResponse) {
@@ -323,6 +434,8 @@ fun loadQuestionsAndAnswersFromXlsx(context: Context): Pair<ArrayList<String>, A
 private fun QueryInput(
     chatViewModel: ChatViewModel,
     onEditAPIKeyClick: () -> Unit,
+    indexType: String,
+    topK: Int
 ) {
     var questionText by remember { mutableStateOf("") }
     val context = LocalContext.current
@@ -358,38 +471,35 @@ private fun QueryInput(
             modifier = Modifier.testTag("send_button").background(Color.Blue, CircleShape),
             onClick = {
                 keyboardController?.hide()
-//                if (!chatViewModel.checkNumDocuments()) {
-//                    Toast
-//                        .makeText(context, "Add documents to execute queries", Toast.LENGTH_LONG)
-//                        .show()
-//                    return@IconButton
-//                }
-//                if (!chatViewModel.checkValidAPIKey()) {
-//                    createAlertDialog(
-//                        dialogTitle = "Invalid API Key",
-//                        dialogText = "Please enter a Gemini API key to use a LLM for generating responses.",
-//                        dialogPositiveButtonText = "Add API key",
-//                        onPositiveButtonClick = onEditAPIKeyClick,
-//                        dialogNegativeButtonText = "Open Gemini Console",
-//                        onNegativeButtonClick = {
-//                            Intent(Intent.ACTION_VIEW).apply {
-//                                data = "https://aistudio.google.com/apikey".toUri()
-//                                context.startActivity(this)
-//                            }
-//                        },
-//                    )
-//                    return@IconButton
-//                }
+
                 if (questionText.trim().isEmpty()) {
                     Toast.makeText(context, "Enter a query to execute", Toast.LENGTH_LONG).show()
                     return@IconButton
                 }
+
                 try {
-                    chatViewModel.getAnswerSparse(
-                        questionText,
-                        context.getString(R.string.prompt_1),
-                        correctAnswerDump
+                    when (indexType) {
+                        "Sparse" -> chatViewModel.getAnswerSparse(
+                            questionText,
+                            context.getString(R.string.prompt_1),
+                            correctAnswerDump,
+                            topK
                         )
+
+                        "Dense" -> chatViewModel.getAnswer(
+                            questionText,
+                            context.getString(R.string.prompt_1),
+                            correctAnswerDump,
+                            topK
+                        )
+
+                        "Hybrid" -> chatViewModel.getAnswerHybrid(
+                            context,
+                            questionText,
+                            correctAnswerDump,
+                            topK
+                        )
+                    }
                 } catch (e: Exception) {
                     createAlertDialog(
                         dialogTitle = "Error",
@@ -400,7 +510,7 @@ private fun QueryInput(
                         onNegativeButtonClick = {},
                     )
                 }
-            },
+            }
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
