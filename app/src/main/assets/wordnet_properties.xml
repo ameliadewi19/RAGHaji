@@ -1,0 +1,5 @@
+<jwnl_properties language="en">
+    <dictionary class="net.sf.extjwnl.dictionary.FileBackedDictionary">
+        <param name="dictionary_path" value="dict"/>
+    </dictionary>
+</jwnl_properties>

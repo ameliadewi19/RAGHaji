@@ -155,6 +155,20 @@ dependencies {
 
     // xlsx
     implementation("org.apache.poi:poi-ooxml:5.2.3")
+
+    // lucene
+    implementation("org.apache.lucene:lucene-core:8.11.1")
+    implementation("org.apache.lucene:lucene-analyzers-common:8.11.1")
+    implementation("org.apache.lucene:lucene-queryparser:8.11.1")
+
+    // wordnet
+    implementation("net.sf.extjwnl:extjwnl:2.0.5")  // extJWNL library
+    implementation("net.sf.extjwnl:extjwnl-data-wn31:1.2")  // WordNet data (version 3.1)
+    implementation("org.jetbrains.kotlin:kotlin-stdlib")  // Kotlin standard library
+
+    // Sastrawi
+    implementation("com.andylibrian.jsastrawi:jsastrawi:0.1")
+
 }
 
 apply(plugin = "io.objectbox")
