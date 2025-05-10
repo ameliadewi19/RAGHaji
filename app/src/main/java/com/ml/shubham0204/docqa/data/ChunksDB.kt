@@ -21,6 +21,8 @@ import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.search.TopDocs
 import org.apache.lucene.store.ByteBuffersDirectory
 import org.apache.lucene.search.ScoreDoc
+import org.apache.lucene.search.similarities.BM25Similarity
+import org.json.JSONObject
 
 
 @Single
@@ -70,23 +72,102 @@ class ChunksDB {
         return stopwords
     }
 
-    fun getSimilarChunksLuceneOptimized(
+//    fun getSimilarChunksLuceneOptimized(
+//        context: Context,
+//        query: String,
+//        n: Int = 5
+//    ): List<Pair<Float, Chunk>> {
+//        // Pastikan LuceneIndexer sudah terinisialisasi dengan memeriksa statusnya
+//        if (!LuceneIndexer.isIndexInitialized()) {
+//            Log.e("LuceneOptimized", "Lucene index not initialized. Make sure to call initializeLuceneIndex() first.")
+//            return emptyList()
+//        }
+//
+//        val stopwords = loadStopwordsFromAssets(context)
+//        val queryTerms = query
+//            .lowercase()
+//            .replace("[^\\p{L}\\p{Nd}\\s]".toRegex(), "")
+//            .split("\\s+".toRegex())
+//            .filter { it.isNotBlank() && it !in stopwords }
+//
+//        val analyzer = StandardAnalyzer()
+//        val queryParser = QueryParser("content", analyzer)
+//        val luceneQuery = queryParser.parse(queryTerms.joinToString(" "))
+//
+//        val indexSearcher = LuceneIndexer.indexSearcher
+//        if (indexSearcher == null) {
+//            Log.e("LuceneOptimized", "IndexSearcher is null. Ensure it is initialized correctly in LuceneIndexer.")
+//            return emptyList()
+//        }
+//
+//        val hits = indexSearcher.search(luceneQuery, n)
+//        val reader = indexSearcher.indexReader
+//        val scoredChunks = mutableListOf<Pair<Float, Chunk>>()
+//
+//        for (hit in hits.scoreDocs) {
+//            val doc = reader.document(hit.doc)
+//            val chunkId = doc.get("id")?.toLongOrNull() ?: continue
+//            val chunk = chunksBox.get(chunkId) ?: continue
+//            scoredChunks.add(Pair(hit.score, chunk))
+//            Log.d("LuceneOptimized", "Found chunk ID: $chunkId | Score: ${hit.score}")
+//            Log.d("LuceneOptimized", "Chunk content: ${chunk.chunkData.take(500)}")
+//        }
+//
+//        return scoredChunks
+//    }
+
+    fun loadThesaurusFromAssets(context: Context): Map<String, List<String>> {
+        val jsonString = context.assets.open("dict.json").bufferedReader().use { it.readText() }
+        val thesaurusMap = mutableMapOf<String, List<String>>()
+
+        val jsonObject = JSONObject(jsonString)
+        val keys = jsonObject.keys()
+        while (keys.hasNext()) {
+            val word = keys.next()
+            val entry = jsonObject.getJSONObject(word)
+            val synonymsJsonArray = entry.optJSONArray("sinonim") ?: continue
+            val synonyms = mutableListOf<String>()
+            for (i in 0 until synonymsJsonArray.length()) {
+                synonyms.add(synonymsJsonArray.getString(i))
+            }
+            thesaurusMap[word] = synonyms
+        }
+        return thesaurusMap
+    }
+
+
+    fun getSimilarChunksSparse(
         context: Context,
         query: String,
         n: Int = 5
     ): List<Pair<Float, Chunk>> {
-        // Pastikan LuceneIndexer sudah terinisialisasi dengan memeriksa statusnya
         if (!LuceneIndexer.isIndexInitialized()) {
             Log.e("LuceneOptimized", "Lucene index not initialized. Make sure to call initializeLuceneIndex() first.")
             return emptyList()
         }
 
         val stopwords = loadStopwordsFromAssets(context)
+//        val thesaurus = loadThesaurusFromAssets(context)
+
         val queryTerms = query
             .lowercase()
             .replace("[^\\p{L}\\p{Nd}\\s]".toRegex(), "")
             .split("\\s+".toRegex())
             .filter { it.isNotBlank() && it !in stopwords }
+//
+//        val expandedTerms = mutableSetOf<String>()
+//        for (term in queryTerms) {
+//            expandedTerms.add(term)
+//            val synonyms = thesaurus[term]
+//            if (synonyms != null) {
+//                expandedTerms.addAll(synonyms)
+//            }
+//        }
+
+        // Log term dan query yang telah dibersihkan
+        Log.d("LuceneOptimized", "Original query: $query")
+        Log.d("LuceneOptimized", "Cleaned terms: ${queryTerms.joinToString(", ")}")
+//        Log.d("LuceneOptimized", "Expanded query: $expandedTerms")
 
         val analyzer = StandardAnalyzer()
         val queryParser = QueryParser("content", analyzer)
@@ -98,6 +179,11 @@ class ChunksDB {
             return emptyList()
         }
 
+        // Set similarity BM25
+        val k1 = 1.2f
+        val b = 0.75f
+        indexSearcher.similarity = BM25Similarity(k1, b)
+
         val hits = indexSearcher.search(luceneQuery, n)
         val reader = indexSearcher.indexReader
         val scoredChunks = mutableListOf<Pair<Float, Chunk>>()
@@ -107,12 +193,213 @@ class ChunksDB {
             val chunkId = doc.get("id")?.toLongOrNull() ?: continue
             val chunk = chunksBox.get(chunkId) ?: continue
             scoredChunks.add(Pair(hit.score, chunk))
+
             Log.d("LuceneOptimized", "Found chunk ID: $chunkId | Score: ${hit.score}")
             Log.d("LuceneOptimized", "Chunk content: ${chunk.chunkData.take(500)}")
         }
 
         return scoredChunks
     }
+
+    fun getHybridSimilarChunks(
+        context: Context,
+        query: String,
+        queryEmbedding: FloatArray,
+        n: Int = 5,
+        lambda: Float = 0.8f
+    ): List<Pair<Float, Chunk>> {
+        if (!LuceneIndexer.isIndexInitialized()) {
+            Log.e("HybridLucene", "Lucene index not initialized.")
+            return emptyList()
+        }
+
+        Log.d("HybridLucene", "Starting retrieval for hybrid chunks.")
+
+        // Retrieve BM25 and Dense results
+        val bm25Results = getSimilarChunksSparse(context, query, n * 3)
+        val denseResults = getSimilarChunks(queryEmbedding, n * 3)
+
+        Log.d("HybridLucene", "BM25 result count: ${bm25Results.size}")
+        Log.d("HybridLucene", "ANN (dense) result count: ${denseResults.size}")
+
+        // Mapping BM25 and Dense results into chunkId to score mapping
+        val bm25Raw = bm25Results.associate {
+            Log.d("HybridLucene", "BM25 raw - ID: ${it.second.chunkId} | Score: ${it.first}")
+            it.second.chunkId to it.first
+        }
+
+        val denseRaw = denseResults.associate {
+            Log.d("HybridLucene", "Dense raw - ID: ${it.second.chunkId} | Score: ${it.first}")
+            it.second.chunkId to it.first
+        }
+
+        // Combine BM25 and Dense results into a unified set of all chunk IDs
+        val allChunkIds = bm25Raw.keys.toSet() union denseRaw.keys.toSet()
+
+        // Create a map for all chunk IDs with both BM25 and embedding scores (default 0 for missing scores)
+        val allScores = allChunkIds.associateWith { chunkId ->
+            val bm25Score = bm25Raw[chunkId] ?: getScoreFromSparseByChunkId(context, query, chunkId)
+            val denseScore = denseRaw[chunkId] ?: getScoreFromEmbeddingByChunkId(chunkId, queryEmbedding)
+            chunkId to Pair(bm25Score, denseScore)
+        }
+
+
+        // Log all the combined scores for both BM25 and Dense for every chunk ID
+        allScores.forEach { (chunkId, scores) ->
+            Log.d("HybridLucene", "All Scores for ID $chunkId - BM25: ${scores.first}, Dense: ${scores.second}")
+        }
+
+        // Normalize BM25 and Dense scores separately
+        fun normalizeScores(scores: Map<Long, Float>): Map<Long, Float> {
+            val min = scores.values.minOrNull() ?: 0f
+            val max = scores.values.maxOrNull() ?: 1f
+            val range = if (max - min == 0f) 1f else max - min
+
+            Log.d("HybridLucene", "Normalizing scores. Min: $min, Max: $max, Range: $range")
+
+            return scores.mapValues { (chunkId, score) ->
+                val normalized = (score - min) / range
+                Log.d("HybridLucene", "Normalized - ID: $chunkId | Raw: $score | Normalized: $normalized")
+                normalized
+            }
+        }
+
+        // Normalized scores for BM25 and Dense separately
+        val bm25Norm = normalizeScores(bm25Raw)
+        val denseNorm = normalizeScores(denseRaw)
+
+        // Calculate hybrid score by combining normalized BM25 and Dense scores
+        val rescored = allScores.mapNotNull { (chunkId, pair) ->
+            val bm25Score = bm25Norm[chunkId] ?: 0f
+            val denseScore = denseNorm[chunkId] ?: 0f
+            val chunk = bm25Results.find { it.second.chunkId == chunkId }?.second
+                ?: denseResults.find { it.second.chunkId == chunkId }?.second
+
+            chunk?.let {
+                val hybridScore = lambda * denseScore + (1 - lambda) * bm25Score
+                Log.d("HybridLucene", "Hybrid Score - ID: $chunkId | Dense: $denseScore | BM25: $bm25Score | Final: $hybridScore")
+                Pair(hybridScore, chunk)
+            }
+        }
+
+        // Sort the rescored results by hybrid score in descending order and take the top N
+        val topResults = rescored.sortedByDescending { it.first }.take(n)
+
+        // Log the top N results
+        topResults.forEachIndexed { index, pair ->
+            Log.d("HybridLucene", "Top[$index] - ID: ${pair.second.chunkId} | Hybrid Score: ${pair.first}")
+        }
+
+        return topResults
+    }
+
+    // Mendapatkan skor BM25 untuk ID tertentu dengan membuat ulang query hanya untuk dokumen itu
+    fun getScoreFromSparseByChunkId(context: Context, query: String, chunkId: Long): Float {
+        val stopwords = loadStopwordsFromAssets(context)
+//        val thesaurus = loadThesaurusFromAssets(context)
+
+        val queryTerms = query
+            .lowercase()
+            .replace("[^\\p{L}\\p{Nd}\\s]".toRegex(), "")
+            .split("\\s+".toRegex())
+            .filter { it.isNotBlank() && it !in stopwords }
+
+        val analyzer = StandardAnalyzer()
+        val queryParser = QueryParser("content", analyzer)
+        val luceneQuery = queryParser.parse(query)
+
+        val indexSearcher = LuceneIndexer.indexSearcher ?: return 0f
+        indexSearcher.similarity = BM25Similarity(1.2f, 0.75f)
+
+        val hits = indexSearcher.search(luceneQuery, 100)
+        for (hit in hits.scoreDocs) {
+            val doc = indexSearcher.indexReader.document(hit.doc)
+            val docId = doc.get("id")?.toLongOrNull()
+            if (docId == chunkId) return hit.score
+        }
+        return 0f
+    }
+
+    // Fungsi Cosine Similarity
+    fun cosineSimilarity(a: FloatArray, b: FloatArray): Float {
+        val dotProduct = a.zip(b).sumOf { (x, y) -> (x * y).toDouble() }
+        val normA = Math.sqrt(a.sumOf { (it * it).toDouble() })
+        val normB = Math.sqrt(b.sumOf { (it * it).toDouble() })
+        return if (normA == 0.0 || normB == 0.0) 0f else (dotProduct / (normA * normB)).toFloat()
+    }
+
+    // Mendapatkan skor cosine similarity untuk embedding ke dokumen tertentu
+    fun getScoreFromEmbeddingByChunkId(chunkId: Long, queryEmbedding: FloatArray): Float {
+        val chunk = chunksBox.get(chunkId) ?: return 0f
+        val docEmbedding = chunk.chunkEmbedding
+        return cosineSimilarity(queryEmbedding, docEmbedding)
+    }
+
+//    fun getHybridSimilarChunks(
+//        context: Context,
+//        query: String,
+//        queryEmbedding: FloatArray,
+//        n: Int = 5,
+//        lambda: Float = 0.8f // Bobot untuk model deep embeddings (MiniLM, SPECTER2)
+//    ): List<Pair<Float, Chunk>> {
+//        if (!LuceneIndexer.isIndexInitialized()) {
+//            Log.e("HybridLuceneOptimized", "Lucene index not initialized.")
+//            return emptyList()
+//        }
+//
+//        // Step 1: Lucene BM25
+//        Log.d("HybridLuceneOptimized", "Starting BM25 retrieval for query: $query")
+//        val luceneResults = getSimilarChunksLuceneOptimized(context, query, n)
+//        Log.d("HybridLuceneOptimized", "Lucene BM25 retrieval completed. Found ${luceneResults.size} results.")
+//
+//        // Step 2: Embedding-based nearest neighbors
+//        Log.d("HybridLuceneOptimized", "Starting embedding-based retrieval.")
+//        val embeddingResults = getSimilarChunks(queryEmbedding, n)
+//        Log.d("HybridLuceneOptimized", "Embedding retrieval completed. Found ${embeddingResults.size} results.")
+//
+//        // Step 3: Gabungkan hasil BM25 dan Embedding (Hybrid)
+//        val scoredChunks = mutableMapOf<Long, Pair<Float, Chunk>>()
+//
+//        // Gabungkan hasil dari Lucene (BM25)
+//        Log.d("HybridLuceneOptimized", "Merging BM25 results into scoredChunks map.")
+//        luceneResults.forEach {
+//            val chunkId = it.second.chunkId // Ambil id dari chunk
+//            val luceneScore = it.first
+//            if (!scoredChunks.contains(chunkId)) {
+//                scoredChunks[chunkId] = Pair(luceneScore, it.second)
+//                Log.d("HybridLuceneOptimized", "Added BM25 result: Chunk ID: ${chunkId}, Score: $luceneScore")
+//            }
+//        }
+//
+//        // Gabungkan hasil dari Embedding-based retrieval
+//        Log.d("HybridLuceneOptimized", "Merging embedding-based results into scoredChunks map.")
+//        embeddingResults.forEach {
+//            val chunkId = it.second.chunkId // Ambil id dari chunk
+//            val embeddingScore = it.first
+//            if (!scoredChunks.contains(chunkId)) {
+//                scoredChunks[chunkId] = Pair(embeddingScore, it.second)
+//                Log.d("HybridLuceneOptimized", "Added embedding result: Chunk ID: ${chunkId}, Score: $embeddingScore")
+//            }
+//        }
+//
+//        // Step 4: Hitung skor hybrid untuk setiap chunk
+//        Log.d("HybridLuceneOptimized", "Calculating hybrid scores.")
+//        val hybridResults = scoredChunks.values.map { (luceneScore, chunk) ->
+//            val embeddingScore = embeddingResults.find { it.second.chunkId == chunk.chunkId }?.first ?: 0f
+//            val hybridScore = lambda * luceneScore + (1 - lambda) * embeddingScore
+//            Log.d("HybridLuceneOptimized", "Chunk ID: ${chunk.chunkId} | BM25 Score: $luceneScore | Embedding Score: $embeddingScore | Hybrid Score: $hybridScore")
+//            Pair(hybridScore, chunk)
+//        }
+//
+//        // Step 5: Urutkan berdasarkan skor gabungan
+//        Log.d("HybridFinal", "Sorting hybrid results based on hybrid score.")
+//        return hybridResults.sortedByDescending { it.first }.take(n).also {
+//            Log.d("HybridFinal", "Top $n results:")
+//            it.forEach { (score, chunk) ->
+//                Log.d("HybridFinal", "Chunk ID: ${chunk.chunkId} | Score: $score | Content: ${chunk.chunkData.take(500)}")
+//            }
+//        }
+//    }
 
     fun removeChunks(docId: Long) {
         chunksBox.removeByIds(
