@@ -236,11 +236,11 @@ class ChatViewModel(
 
                 Log.d("RETRIEVED CHUNK", "$retrievedChunks")
 
-                val chunkList = retrievedChunks.map { it.second.chunkData }
+                val chunkList = retrievedChunks.map { it.second.chunkText }
                 val jointContext = mergeChunksWithOverlap(chunkList)
 
                 val retrievedContextList = retrievedChunks.map {
-                    RetrievedContext(it.second.docFileName, it.second.chunkData)
+                    RetrievedContext(it.second.docFileName, it.second.chunkText)
                 }
 
                 val retrieveDuration = System.currentTimeMillis() - retrieveStart
@@ -338,7 +338,7 @@ Jawaban:
 
                 // Start streaming response
                 llamaRemoteAPI.getResponsePerToken(inputPrompt, query, correctAnswer, retrieveDuration) { token ->
-                // Update response state per token
+                    // Update response state per token
                     _responseState.value += token
                     Log.d("STREAM TOKEN", "$token")
                 }
@@ -463,11 +463,11 @@ Jawaban:
 //                    retrievedContextList.add(RetrievedContext(chunk.docFileName, chunk.chunkData))
 //                }
 
-                val chunkList = retrievedChunks.map { it.second.chunkData }
+                val chunkList = retrievedChunks.map { it.second.chunkText }
                 val jointContext = mergeChunksWithOverlap(chunkList)
 
                 val retrievedContextList = retrievedChunks.map {
-                    RetrievedContext(it.second.docFileName, it.second.chunkData)
+                    RetrievedContext(it.second.docFileName, it.second.chunkText)
                 }
 
                 val retrieveDuration = System.currentTimeMillis() - retrieveStart
@@ -544,11 +544,11 @@ Jawaban:
                     lambda = lambda
                 )
 
-                val chunkList = retrievedChunks.map { it.second.chunkData }
+                val chunkList = retrievedChunks.map { it.second.chunkText }
                 val jointContext = mergeChunksWithOverlap(chunkList)
 
                 val retrievedContextList = retrievedChunks.map {
-                    RetrievedContext(it.second.docFileName, it.second.chunkData)
+                    RetrievedContext(it.second.docFileName, it.second.chunkText)
                 }
 
                 val retrieveDuration = System.currentTimeMillis() - retrieveStart

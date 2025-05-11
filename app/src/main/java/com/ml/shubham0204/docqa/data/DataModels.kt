@@ -11,9 +11,10 @@ data class Chunk(
     @Id var chunkId: Long = 0,
     @Index var docId: Long = 0,
     var docFileName: String = "",
-    var chunkData: String = "",
+    var chunkText: String = "",
     @HnswIndex(dimensions = 384)
     var chunkEmbedding: FloatArray = floatArrayOf(),
+    var Id: String? = null,
     var chunkSize: Int = 0,
     var chunkUuid: String = UUID.randomUUID().toString(),
     var parentChunkId: String? = null,
@@ -23,10 +24,10 @@ data class Chunk(
 @Entity
 data class ChunkNode(
     @Id var localId: Long = 0,
-    val id: String = UUID.randomUUID().toString(),
+    val id: String? = null,
+    val parentId: String? = null,
     val text: String,
     val size: Int,
-    val parentId: String? = null
 )
 
 @Entity

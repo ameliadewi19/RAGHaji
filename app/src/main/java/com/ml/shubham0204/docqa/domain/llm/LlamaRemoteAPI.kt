@@ -12,6 +12,7 @@ import android.os.Environment
 
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.flow.toList
 import java.io.FileReader
 import java.io.FileWriter
 
@@ -242,6 +243,31 @@ class LlamaRemoteAPI(private val context: Context) {
 
         } catch (e: IOException) {
             Log.e("LLAMA", "Error writing log to JSON", e)
+        }
+    }
+
+    suspend fun getResponse(prompt: String): String? = withContext(Dispatchers.IO) {
+        try {
+            // Inisialisasi model (pastikan ini hanya dijalankan sekali)
+            initModel()
+
+            // Tambahkan konteks sebelum prompt utama
+            val context = """
+            $prompt
+        """.trimIndent()
+
+            Log.d("LLAMA", "Prompt length (chars): ${context.length}")
+            Log.d("LLAMA", "Prompt content: \n$context")
+            val result = llamaAndroid?.send(context)?.toList()?.joinToString("")?.trim()
+
+            Log.d("LLamaResult", "Result: $result")
+
+            Log.d("LLAMA", "Response: $result")
+            return@withContext result
+
+        } catch (e: Exception) {
+            Log.e("LLAMA", "Error during prompt execution", e)
+            return@withContext null
         }
     }
 

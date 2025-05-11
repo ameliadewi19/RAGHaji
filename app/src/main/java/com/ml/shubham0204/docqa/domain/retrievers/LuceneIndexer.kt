@@ -41,7 +41,7 @@ object LuceneIndexer {
         chunkDocuments.forEach { chunk ->
             val doc = Document().apply {
                 add(StringField("id", chunk.chunkId.toString(), Field.Store.YES))
-                add(TextField("content", chunk.chunkData, Field.Store.YES))
+                add(TextField("content", chunk.chunkText, Field.Store.YES))
             }
             writer.addDocument(doc)
         }
@@ -59,4 +59,26 @@ object LuceneIndexer {
     fun isIndexInitialized(): Boolean {
         return indexInitialized
     }
+
+    fun clearIndex() {
+        if (!indexInitialized || indexDirectory == null) {
+            Log.d("LuceneClear", "Index belum diinisialisasi atau sudah kosong.")
+            return
+        }
+
+        try {
+            // Close the current reader if it's open
+            indexSearcherInternal?.indexReader?.close()
+        } catch (e: Exception) {
+            Log.e("LuceneClear", "Error closing reader: ${e.message}")
+        }
+
+        // Reset all variables
+        indexDirectory = null
+        indexSearcherInternal = null
+        indexInitialized = false
+
+        Log.d("LuceneClear", "Lucene index cleared.")
+    }
+
 }

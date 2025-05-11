@@ -195,7 +195,7 @@ class ChunksDB {
             scoredChunks.add(Pair(hit.score, chunk))
 
             Log.d("LuceneOptimized", "Found chunk ID: $chunkId | Score: ${hit.score}")
-            Log.d("LuceneOptimized", "Chunk content: ${chunk.chunkData.take(500)}")
+            Log.d("LuceneOptimized", "Chunk content: ${chunk.chunkText.take(500)}")
         }
 
         return scoredChunks
