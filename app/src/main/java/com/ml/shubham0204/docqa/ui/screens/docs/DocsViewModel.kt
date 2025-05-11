@@ -4,14 +4,16 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.ml.shubham0204.docqa.data.Chunk
+import com.ml.shubham0204.docqa.data.ChunkNode
 import com.ml.shubham0204.docqa.data.ChunksDB
 import com.ml.shubham0204.docqa.data.Document
 import com.ml.shubham0204.docqa.data.DocumentsDB
+import com.ml.shubham0204.docqa.di.Utils
 import com.ml.shubham0204.docqa.domain.embeddings.SentenceEmbeddingProvider
 import com.ml.shubham0204.docqa.domain.readers.Readers
+import com.ml.shubham0204.docqa.domain.retrievers.LuceneIndexer
 import com.ml.shubham0204.docqa.domain.splitters.SlidingWindowChunker
-import com.ml.shubham0204.docqa.domain.splitters.Small2BigChunker
-import com.ml.shubham0204.docqa.domain.splitters.WhiteSpaceSplitter
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -22,6 +24,7 @@ import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.MalformedURLException
 import java.net.URL
+import java.util.UUID
 import kotlin.math.min
 
 @KoinViewModel
@@ -115,8 +118,8 @@ class DocsViewModel(
         setProgressDialogText("Creating chunks...")
         val chunks = SlidingWindowChunker.createSlidingChunks(
             docText = text,
-            windowSize = 128,
-            step = 20
+            chunkSize = 128,
+            overlap = 20
         )
 
         Log.d("ChunkDebug", "=== CHUNK HASIL SLIDING WINDOW ===")
@@ -139,12 +142,72 @@ class DocsViewModel(
                 Chunk(
                     docId = newDocId,
                     docFileName = fileName,
-                    chunkData = chunkText,
+                    chunkText = chunkText,
                     chunkEmbedding = embedding,
                 )
             )
         }
 
+    }
+
+    suspend fun addDocumentFromAssets(
+        context: Context,
+        fileName: String,
+    ) = withContext(Dispatchers.IO) {
+        chunksDB.clearChunks()
+
+        val chunks = Utils.readChunksFromAssets(context, fileName)
+
+        val newDocId = documentsDB.addDocument(
+            Document(
+                docText = "",
+                docFileName = fileName,
+                docAddedTime = System.currentTimeMillis(),
+            )
+        )
+
+        setProgressDialogText("Adding chunks to database...")
+
+        val size = chunks.size
+        chunks.forEachIndexed { index, chunkJson ->
+            setProgressDialogText("Added ${index + 1}/$size chunk(s) to database...")
+
+            val embedding = sentenceEncoder.encodeText(chunkJson.chunk_text)
+
+            chunksDB.addChunk(
+                Chunk(
+                    Id = chunkJson.id,
+                    parentChunkId = chunkJson.parent_id,
+                    chunkText = chunkJson.chunk_text,
+                    chunkEmbedding = embedding,
+                )
+            )
+        }
+
+        Log.d("ChunkDebug", "=== CHUNK From Assets JSON ===")
+        chunks.forEachIndexed { index, chunkJson ->
+            Log.d(
+                "ChunkDebug",
+                "Chunk ${index + 1} \nchunkId=${chunkJson.id}  \n" +
+                        "parentId=${chunkJson.parent_id} (size=${chunkJson.chunk_text.length}, text: ${chunkJson.chunk_text})"
+            )
+        }
+        Log.d("ChunkDebug", "=== TOTAL CHUNKS: ${chunks.size} ===")
+
+//        LuceneIndexer.initializeLuceneIndex(context, chunksDB)
+    }
+
+    suspend fun rebuildLuceneIndex(context: Context) {
+        withContext(Dispatchers.IO) {
+            LuceneIndexer.clearIndex()
+            LuceneIndexer.initializeLuceneIndex(context, chunksDB)
+        }
+    }
+
+    fun removeDocument(docId: Long) {
+        documentsDB.removeDocument(docId)
+        chunksDB.removeChunks(docId)
+        LuceneIndexer.clearIndex()
     }
 
 //    suspend fun addDocument(context: Context) = withContext(Dispatchers.IO) {
@@ -237,12 +300,7 @@ class DocsViewModel(
 
     fun getAllDocuments(): Flow<List<Document>> = documentsDB.getAllDocuments()
 
-    fun removeDocument(docId: Long) {
-        documentsDB.removeDocument(docId)
-        chunksDB.removeChunks(docId)
-    }
-
-    fun getDocsCount(): Long = documentsDB.getDocsCount()
+       fun getDocsCount(): Long = documentsDB.getDocsCount()
 
     // Extracts the file name from the URL
     // Source: https://stackoverflow.com/a/11576046/13546426

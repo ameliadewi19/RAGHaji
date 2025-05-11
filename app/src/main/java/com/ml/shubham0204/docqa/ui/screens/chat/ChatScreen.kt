@@ -191,7 +191,6 @@ fun ChatScreen(
                     topK = topK
                 )
             }
-
             AppAlertDialog()
         }
     }

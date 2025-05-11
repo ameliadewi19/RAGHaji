@@ -40,6 +40,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -68,6 +69,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.androidx.compose.koinViewModel
+import setProgressDialogText
 import showProgressDialog
 
 private val showDocDetailDialog = mutableStateOf(false)
@@ -198,6 +200,20 @@ private fun DocOperations(docsViewModel: DocsViewModel) {
     var docType = Readers.DocumentType.PDF
     var pdfUrl by remember { mutableStateOf("") }
     var showUrlDialog by remember { mutableStateOf(false) }
+
+    // Add state for the chunk options dialog
+    var showChunkOptionsDialog by remember { mutableStateOf(false) }
+
+    // Define chunk options
+    val chunkOptions = listOf(
+        "sliding window 50 256" to "chunks/sliding_50_256.json",
+        "sliding window 100 256" to "chunks/sliding_100_256.json",
+        "sliding window 50 512" to "chunks/sliding_50_512.json",
+        "sliding window 100 512" to "chunks/sliding_100_512.json",
+        "small 128 to big 256" to "chunks/128_to_256.json",
+        "small 256 to big 512" to "chunks/256_to_512.json"
+    )
+
     val launcher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.StartActivityForResult(),
@@ -212,22 +228,60 @@ private fun DocOperations(docsViewModel: DocsViewModel) {
                     cursor.moveToFirst()
                     docFileName = cursor.getString(nameIndex)
                 }
-                context.contentResolver.openInputStream(uri)?.let { inputStream ->
-                    showProgressDialog()
-                    CoroutineScope(Dispatchers.IO).launch {
-                        docsViewModel.addDocument(
-                            inputStream,
-                            docFileName,
-                            docType,
-                        )
-                        withContext(Dispatchers.IO) {
-                            hideProgressDialog()
-                            inputStream.close()
+//                context.contentResolver.openInputStream(uri)?.let { inputStream ->
+//                    showProgressDialog()
+//                    CoroutineScope(Dispatchers.IO).launch {
+//                        docsViewModel.addDocumentFromAssets(
+//                            context, "chunks/sliding_50_256.json"
+//                        )
+//                        withContext(Dispatchers.IO) {
+//                            hideProgressDialog()
+//                            inputStream.close()
+//                        }
+//                    }
+//                }
+            }
+        }
+
+    // Dialog for chunk options
+    if (showChunkOptionsDialog) {
+        AlertDialog(
+            onDismissRequest = { showChunkOptionsDialog = false },
+            title = { Text("Select Chunk Option") },
+            text = {
+                Column {
+                    chunkOptions.forEach { (name, path) ->
+                        TextButton(
+                            onClick = {
+                                showChunkOptionsDialog = false
+                                showProgressDialog()
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    docsViewModel.addDocumentFromAssets(context, path)
+                                    withContext(Dispatchers.Main) {
+                                        setProgressDialogText("Indexing chunks...")
+                                        showProgressDialog()
+                                    }
+
+                                    docsViewModel.rebuildLuceneIndex(context)
+
+                                    withContext(Dispatchers.Main) {
+                                        hideProgressDialog()
+                                    }
+                                }
+                            }
+                        ) {
+                            Text(name)
                         }
                     }
                 }
+            },
+            confirmButton = {
+                TextButton(onClick = { showChunkOptionsDialog = false }) {
+                    Text("Cancel")
+                }
             }
-        }
+        )
+    }
 
     Row(
         modifier = Modifier.padding(horizontal = 8.dp, vertical = 16.dp).fillMaxWidth(),
@@ -238,102 +292,19 @@ private fun DocOperations(docsViewModel: DocsViewModel) {
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6650a4)),
             onClick = {
                 docType = Readers.DocumentType.PDF
-                launcher.launch(
-                    Intent(Intent.ACTION_GET_CONTENT).apply { type = "application/pdf" },
-                )
+                showChunkOptionsDialog = true
+//                showProgressDialog()
+//                CoroutineScope(Dispatchers.IO).launch {
+//                    docsViewModel.addDocumentFromAssets(context, "chunks/256_to_512.json")
+//                    withContext(Dispatchers.Main) {
+//                        hideProgressDialog()
+//                    }
+//                }
             },
         ) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = "Add PDF document", tint = Color.White)
-            Text(text = "PDF", color = Color.White)
+            Icon(imageVector = Icons.Default.Add, contentDescription = "Add Chunks", tint = Color.White)
+            Text(text = "Chunks", color = Color.White)
         }
-
-        // Upload DOCX from device
-        Button(
-            modifier = Modifier.weight(1f).padding(2.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB94C7)),
-            onClick = {
-                docType = Readers.DocumentType.MS_DOCX
-                launcher.launch(
-                    Intent(Intent.ACTION_GET_CONTENT).apply {
-                        type =
-                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    },
-                )
-            },
-        ) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = "Add DOCX document", tint = Color.White)
-            Text(text = "DOCX", color = Color.White)
-        }
-
-        // Add from URL
-        Button(
-            modifier = Modifier.weight(1f).padding(2.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF643A71)),
-            onClick = { showUrlDialog = true },
-        ) {
-            Icon(
-                imageVector = Icons.Default.Link,
-                contentDescription = "Add document from URL",
-                tint = Color.White,
-                modifier = Modifier.rotate(45f),
-            )
-            Text(text = "URL", color = Color.White)
-        }
-    }
-
-    // URL Dialog
-    if (showUrlDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showUrlDialog = false
-                pdfUrl = ""
-            },
-            title = {
-                Column {
-                    Text("Add document from URL", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "The app will determine the type of the document using the file-extension of the downloaded " +
-                            "document",
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-                }
-            },
-            text = {
-                Column {
-                    TextField(
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                        value = pdfUrl,
-                        onValueChange = { pdfUrl = it },
-                        label = { Text("Enter URL") },
-                    )
-                }
-            },
-            confirmButton = {
-                Button(onClick = {
-                    if (pdfUrl.isNotBlank()) {
-                        showProgressDialog()
-                        CoroutineScope(Dispatchers.IO).launch {
-                            docsViewModel.addDocumentFromUrl(pdfUrl, context) { success ->
-                                hideProgressDialog()
-                                if (success) {
-                                    Toast.makeText(context, "PDF added from source", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "Failed to download", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                            showUrlDialog = false
-                        }
-                    }
-                }) {
-                    Text("Add")
-                }
-            },
-            dismissButton = {
-                Button(onClick = { showUrlDialog = false }) {
-                    Text("Cancel")
-                }
-            },
-        )
     }
 }
 
