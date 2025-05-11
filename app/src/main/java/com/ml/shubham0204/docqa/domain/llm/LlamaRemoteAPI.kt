@@ -75,17 +75,13 @@ class LlamaRemoteAPI(private val context: Context) {
 
             val inputTokens = prompt.split("\\s+".toRegex()).size
 
-            Log.d("PROMPT", "Prompt: $prompt")
+            Log.d("PROMPT", "$prompt")
 
             val resultTokens = StringBuilder()
             val inferenceStart = System.currentTimeMillis()
             var firstTokenTime: Long? = null
 
-            val konteks = """
-             $prompt
-         """.trimIndent()
-
-            llamaAndroid?.send(konteks)?.collect { token ->
+            llamaAndroid?.send(prompt)?.collect { token ->
                 if (firstTokenTime == null) {
                     firstTokenTime = System.currentTimeMillis()
                 }
@@ -246,30 +242,26 @@ class LlamaRemoteAPI(private val context: Context) {
         }
     }
 
-    suspend fun getResponse(prompt: String): String? = withContext(Dispatchers.IO) {
-        try {
-            // Inisialisasi model (pastikan ini hanya dijalankan sekali)
-            initModel()
-
-            // Tambahkan konteks sebelum prompt utama
-            val context = """
-            $prompt
-        """.trimIndent()
-
-            Log.d("LLAMA", "Prompt length (chars): ${context.length}")
-            Log.d("LLAMA", "Prompt content: \n$context")
-            val result = llamaAndroid?.send(context)?.toList()?.joinToString("")?.trim()
-
-            Log.d("LLamaResult", "Result: $result")
-
-            Log.d("LLAMA", "Response: $result")
-            return@withContext result
-
-        } catch (e: Exception) {
-            Log.e("LLAMA", "Error during prompt execution", e)
-            return@withContext null
-        }
-    }
+//    suspend fun getResponse(prompt: String): String? = withContext(Dispatchers.IO) {
+//        try {
+//            // Inisialisasi model (pastikan ini hanya dijalankan sekali)
+//            initModel()
+//
+//
+//            Log.d("LLAMA", "Prompt length (chars): ${context.length}")
+//            Log.d("LLAMA", "Prompt content: \n$context")
+//            val result = llamaAndroid?.send(prompt)?.toList()?.joinToString("")?.trim()
+//
+//            Log.d("LLamaResult", "Result: $result")
+//
+//            Log.d("LLAMA", "Response: $result")
+//            return@withContext result
+//
+//        } catch (e: Exception) {
+//            Log.e("LLAMA", "Error during prompt execution", e)
+//            return@withContext null
+//        }
+//    }
 
     // Fungsi untuk menyalin model GGUF dari assets ke filesDir
     fun copyGGUFModelFromAssets(context: Context) {
@@ -297,11 +289,10 @@ class LlamaRemoteAPI(private val context: Context) {
                 }
             } catch (e: IOException) {
                 Log.e("MODEL_COPY", "Error copying model from assets", e)
-            } catch (e: Exception) {
-                Log.e("MODEL_COPY", "Unexpected error during model copy", e)
             }
         } else {
             Log.d("MODEL_COPY", "Model already exists at: ${modelFile.absolutePath}")
         }
     }
+
 }

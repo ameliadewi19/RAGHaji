@@ -117,41 +117,50 @@ class ChatViewModel(
             try {
                 val retrievedChunks = chunksDB.getSimilarChunks(query, n = topK)
                 Log.d("RETRIEVED CHUNK", "$retrievedChunks")
+//
+//                val chunkList = retrievedChunks.map { it.second.chunkText }
+//                val jointContext = mergeChunksWithOverlap(chunkList)
+//
+//                val retrievedContextList = retrievedChunks.map {
+//                    RetrievedContext(it.second.docFileName, it.second.chunkText)
+//                }
 
-                val chunkList = retrievedChunks.map { it.second.chunkText }
-                val jointContext = mergeChunksWithOverlap(chunkList)
+                val retrievedContextList = ArrayList<RetrievedContext>()
+                var jointContext = ""
 
-                val retrievedContextList = retrievedChunks.map {
-                    RetrievedContext(it.second.docFileName, it.second.chunkText)
+                for ((_, chunk) in retrievedChunks) {
+                    Log.d("CHUNK","${chunk.chunkText}")
+                    jointContext += " " + chunk.chunkText
+                    retrievedContextList.add(RetrievedContext(chunk.docFileName, chunk.chunkText))
                 }
 
                 val retrieveDuration = System.currentTimeMillis() - retrieveStart
                 Log.d("ChatViewModel", "Waktu retrieve konteks: $retrieveDuration ms")
 
                 val inputPrompt = """
-                <|im_start|>system
+<|im_start|>system
+Tugas Anda:
+- Pilih hanya bagian konteks yang relevan dengan pertanyaan.
+- Gunakan kalimat dari konteks secara langsung tanpa mengubah makna.
+- Jangan menambahkan informasi atau opini baru yang tidak ada dalam konteks.
+- Jawaban harus singkat dan langsung ke inti pertanyaan.
+- Hindari pengulangan dan penambahan penjelasan lain.
+- Jangan memberikan kalimat tambahan yang tidak ada dalam konteks.
+- Jawaban hanya untuk menjawab pertanyaan yang diajukan.
                 
-                Tugas Anda:
-                - Pilih hanya bagian konteks yang relevan dengan pertanyaan.
-                - Gunakan kalimat dari konteks secara langsung tanpa mengubah makna.
-                - Jangan menambahkan informasi atau opini baru yang tidak ada dalam konteks.
-                - Jawaban harus singkat dan langsung ke inti pertanyaan.
-                - Hindari pengulangan dan penambahan penjelasan lain.
-                - Jangan memberikan kalimat tambahan yang tidak ada dalam konteks.
-                - Jawaban hanya untuk menjawab pertanyaan yang diajukan.
+<|im_end|>
+
+<|im_start|>user
+=== Konteks ===
+$jointContext
+===============
                 
-                <|im_end|>
-                <|im_start|>user
-                === Konteks ===
-                $jointContext
-                ===============
+Pertanyaan: $query
                 
-                Pertanyaan: $query
-                
-                Jawaban:
-                <|im_end|>
-                <|im_start|>assistant
-                """.trimIndent()
+Jawaban:
+<|im_end|>
+<|im_start|>assistant
+""".trimIndent()
 
                 // Start streaming response
                 llamaRemoteAPI.getResponsePerToken(inputPrompt, query, correctAnswer, retrieveDuration) { token ->
@@ -187,14 +196,14 @@ class ChatViewModel(
                 // Ambil N chunk terdekat dari Lucene
                 val retrievedChunks = chunksDB.getSimilarChunksSparse(context, query, n = topK)
                 Log.d("RETRIEVED CHUNK", "$retrievedChunks")
-
+//
 //                val retrievedContextList = ArrayList<RetrievedContext>()
 //                var jointContext = ""
 //
 //                for ((_, chunk) in retrievedChunks) {
-//                    Log.d("CHUNK","${chunk.chunkData}")
-//                    jointContext += " " + chunk.chunkData
-//                    retrievedContextList.add(RetrievedContext(chunk.docFileName, chunk.chunkData))
+//                    Log.d("CHUNK","${chunk.chunkText}")
+//                    jointContext += " " + chunk.chunkText
+//                    retrievedContextList.add(RetrievedContext(chunk.docFileName, chunk.chunkText))
 //                }
 
                 val chunkList = retrievedChunks.map { it.second.chunkText }
@@ -208,29 +217,29 @@ class ChatViewModel(
                 Log.d("ChatViewModel", "Waktu retrieve konteks (Lucene): $retrieveDuration ms")
 
                 val inputPrompt = """
-                <|im_start|>system
+<|im_start|>system
+Tugas Anda:
+- Pilih hanya bagian konteks yang relevan dengan pertanyaan.
+- Gunakan kalimat dari konteks secara langsung tanpa mengubah makna.
+- Jangan menambahkan informasi atau opini baru yang tidak ada dalam konteks.
+- Jawaban harus singkat dan langsung ke inti pertanyaan.
+- Hindari pengulangan dan penambahan penjelasan lain.
+- Jangan memberikan kalimat tambahan yang tidak ada dalam konteks.
+- Jawaban hanya untuk menjawab pertanyaan yang diajukan.
                 
-                Tugas Anda:
-                - Pilih hanya bagian konteks yang relevan dengan pertanyaan.
-                - Gunakan kalimat dari konteks secara langsung tanpa mengubah makna.
-                - Jangan menambahkan informasi atau opini baru yang tidak ada dalam konteks.
-                - Jawaban harus singkat dan langsung ke inti pertanyaan.
-                - Hindari pengulangan dan penambahan penjelasan lain.
-                - Jangan memberikan kalimat tambahan yang tidak ada dalam konteks.
-                - Jawaban hanya untuk menjawab pertanyaan yang diajukan.
+<|im_end|>
+
+<|im_start|>user
+=== Konteks ===
+$jointContext
+===============
                 
-                <|im_end|>
-                <|im_start|>user
-                === Konteks ===
-                $jointContext
-                ===============
+Pertanyaan: $query
                 
-                Pertanyaan: $query
-                
-                Jawaban:
-                <|im_end|>
-                <|im_start|>assistant
-                """.trimIndent()
+Jawaban:
+<|im_end|>
+<|im_start|>assistant
+""".trimIndent()
 
                 llamaRemoteAPI.getResponsePerToken(inputPrompt, query, correctAnswer, retrieveDuration) { token ->
                     _responseState.value += token
@@ -253,7 +262,7 @@ class ChatViewModel(
         query: String,
         correctAnswer: String,
         topK: Int,
-        lambda: Float = 0.8f
+        lambda: Float = 0.5f
     ) {
         val retrieveStart = System.currentTimeMillis()
         val llamaRemoteAPI = LlamaRemoteAPI(context)
@@ -279,33 +288,42 @@ class ChatViewModel(
                     RetrievedContext(it.second.docFileName, it.second.chunkText)
                 }
 
+//                val retrievedContextList = ArrayList<RetrievedContext>()
+//                var jointContext = ""
+//
+//                for ((_, chunk) in retrievedChunks) {
+//                    Log.d("CHUNK","${chunk.chunkText}")
+//                    jointContext += " " + chunk.chunkText
+//                    retrievedContextList.add(RetrievedContext(chunk.docFileName, chunk.chunkText))
+//                }
+
                 val retrieveDuration = System.currentTimeMillis() - retrieveStart
                 Log.d("ChatViewModel", "Waktu retrieve konteks (Hybrid): $retrieveDuration ms")
 
                 val inputPrompt = """
-                <|im_start|>system
+<|im_start|>system
+Tugas Anda:
+- Pilih hanya bagian konteks yang relevan dengan pertanyaan.
+- Gunakan kalimat dari konteks secara langsung tanpa mengubah makna.
+- Jangan menambahkan informasi atau opini baru yang tidak ada dalam konteks.
+- Jawaban harus singkat dan langsung ke inti pertanyaan.
+- Hindari pengulangan dan penambahan penjelasan lain.
+- Jangan memberikan kalimat tambahan yang tidak ada dalam konteks.
+- Jawaban hanya untuk menjawab pertanyaan yang diajukan.
                 
-                Tugas Anda:
-                - Pilih hanya bagian konteks yang relevan dengan pertanyaan.
-                - Gunakan kalimat dari konteks secara langsung tanpa mengubah makna.
-                - Jangan menambahkan informasi atau opini baru yang tidak ada dalam konteks.
-                - Jawaban harus singkat dan langsung ke inti pertanyaan.
-                - Hindari pengulangan dan penambahan penjelasan lain.
-                - Jangan memberikan kalimat tambahan yang tidak ada dalam konteks.
-                - Jawaban hanya untuk menjawab pertanyaan yang diajukan.
+<|im_end|>
+
+<|im_start|>user
+=== Konteks ===
+$jointContext
+===============
                 
-                <|im_end|>
-                <|im_start|>user
-                === Konteks ===
-                $jointContext
-                ===============
+Pertanyaan: $query
                 
-                Pertanyaan: $query
-                
-                Jawaban:
-                <|im_end|>
-                <|im_start|>assistant
-                """.trimIndent()
+Jawaban:
+<|im_end|>
+<|im_start|>assistant
+""".trimIndent()
 
 //                val inputPrompt = """
 //            Berikut adalah beberapa potong teks konteks yang berisi informasi terkait pertanyaan berikut:
