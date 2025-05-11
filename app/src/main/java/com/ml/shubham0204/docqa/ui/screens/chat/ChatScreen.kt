@@ -157,7 +157,10 @@ fun ChatScreen(
                                 onClick = {
                                     selectedIndexType = option
                                     expanded = false
+                                    // Log ketika index type dipilih
+                                    Log.d("IndexType", "Selected Index Type: $selectedIndexType")
                                 }
+
                             )
                         }
                     }
@@ -478,27 +481,46 @@ private fun QueryInput(
 
                 try {
                     when (indexType) {
-                        "Sparse" -> chatViewModel.getAnswerSparse(
-                            questionText,
-                            context.getString(R.string.prompt_1),
-                            correctAnswerDump,
-                            topK
-                        )
+                        "Sparse" -> {
+                            Log.d("QueryInput", "Calling getAnswerSparse")
+                            chatViewModel.getAnswerSparse(
+                                questionText,
+                                context.getString(R.string.prompt_1),
+                                correctAnswerDump,
+                                topK
+                            )
+                        }
 
-                        "Dense" -> chatViewModel.getAnswer(
-                            questionText,
-                            context.getString(R.string.prompt_1),
-                            correctAnswerDump,
-                            topK
-                        )
+                        "Dense" -> {
+                            Log.d("QueryInput", "Calling getAnswer")
+                            chatViewModel.getAnswer(
+                                questionText,
+                                context.getString(R.string.prompt_1),
+                                correctAnswerDump,
+                                topK
+                            )
+                        }
 
-                        "Hybrid" -> chatViewModel.getAnswerHybrid(
-                            context,
-                            questionText,
-                            correctAnswerDump,
-                            topK
-                        )
+                        "Hybrid" -> {
+                            Log.d("QueryInput", "Calling getAnswerHybrid")
+                            chatViewModel.getAnswerHybrid(
+                                context,
+                                questionText,
+                                correctAnswerDump,
+                                topK
+                            )
+                        }
                     }
+                } catch (e: Exception) {
+                    createAlertDialog(
+                        dialogTitle = "Error",
+                        dialogText = "An error occurred while generating the response: ${e.message}",
+                        dialogPositiveButtonText = "Close",
+                        onPositiveButtonClick = {},
+                        dialogNegativeButtonText = null,
+                        onNegativeButtonClick = {},
+                    )
+
                 } catch (e: Exception) {
                     createAlertDialog(
                         dialogTitle = "Error",
