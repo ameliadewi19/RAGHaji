@@ -150,17 +150,32 @@ class ChunksDB(
             scoredChunks.add(Pair(hit.score, chunk))
 
             Log.d("Sparse", "Found chunk ID: $chunkId | Score: ${hit.score}")
-            Log.d("Sparse", "Chunk content: ${chunk.chunkText.take(500)}")
+            Log.d("Sparse", "Chunk content: ${chunk.chunkText.take(1000)}")
         }
 
         return scoredChunks
+    }
+
+    // Normalize BM25 and Dense scores separately
+    fun normalizeScores(scores: Map<Long, Float>): Map<Long, Float> {
+        val min = scores.values.minOrNull() ?: 0f
+        val max = scores.values.maxOrNull() ?: 1f
+        val range = if (max - min == 0f) 1f else max - min
+
+        Log.d("Hybrid", "Normalizing scores. Min: $min, Max: $max, Range: $range")
+
+        return scores.mapValues { (chunkId, score) ->
+            val normalized = (score - min) / range
+            Log.d("Hybrid", "Normalized - ID: $chunkId | Raw: $score | Normalized: $normalized")
+            normalized
+        }
     }
 
     fun getHybridSimilarChunks(
         context: Context,
         query: String,
         n: Int = 5,
-        lambda: Float = 0.8f
+        lambda: Float = 0.5f
     ): List<Pair<Float, Chunk>> {
         if (!LuceneIndexer.isIndexInitialized()) {
             Log.e("Hybrid", "Lucene index not initialized.")
@@ -188,65 +203,31 @@ class ChunksDB(
             it.second.chunkId to it.first
         }
 
-        // Combine BM25 and Dense results into a unified set of all chunk IDs
-        val allChunkIds = bm25Raw.keys.toSet() union denseRaw.keys.toSet()
+        // Combine all chunk IDs from both sources
+        val allChunkIds = bm25Raw.keys union denseRaw.keys
 
-        // Get expanded query
+        // Expand query and get embedding
         val expandedQuery = queryExpander.expandQuery(query)
-
-        // Get query embedding
         val queryEmbedding = sentenceEncoder.encodeText(expandedQuery)
 
-        // Create a map for all chunk IDs with both BM25 and embedding scores (default 0 for missing scores)
-        val allScores = allChunkIds.associateWith { chunkId ->
+        // Calculate hybrid scores
+        val rescored = allChunkIds.mapNotNull { chunkId ->
             val bm25Score = bm25Raw[chunkId] ?: getScoreFromSparseByChunkId(context, expandedQuery, chunkId)
             val denseScore = denseRaw[chunkId] ?: getScoreFromEmbeddingByChunkId(chunkId, queryEmbedding)
-            chunkId to Pair(bm25Score, denseScore)
-        }
 
-
-        // Log all the combined scores for both BM25 and Dense for every chunk ID
-        allScores.forEach { (chunkId, scores) ->
-            Log.d("Hybrid", "All Scores for ID $chunkId - BM25: ${scores.first}, Dense: ${scores.second}")
-        }
-
-        // Normalize BM25 and Dense scores separately
-        fun normalizeScores(scores: Map<Long, Float>): Map<Long, Float> {
-            val min = scores.values.minOrNull() ?: 0f
-            val max = scores.values.maxOrNull() ?: 1f
-            val range = if (max - min == 0f) 1f else max - min
-
-            Log.d("Hybrid", "Normalizing scores. Min: $min, Max: $max, Range: $range")
-
-            return scores.mapValues { (chunkId, score) ->
-                val normalized = (score - min) / range
-                Log.d("Hybrid", "Normalized - ID: $chunkId | Raw: $score | Normalized: $normalized")
-                normalized
-            }
-        }
-
-        // Normalized scores for BM25 and Dense separately
-        val bm25Norm = normalizeScores(bm25Raw)
-        val denseNorm = normalizeScores(denseRaw)
-
-        // Calculate hybrid score by combining normalized BM25 and Dense scores
-        val rescored = allScores.mapNotNull { (chunkId, pair) ->
-            val bm25Score = bm25Norm[chunkId] ?: 0f
-            val denseScore = denseNorm[chunkId] ?: 0f
             val chunk = bm25Results.find { it.second.chunkId == chunkId }?.second
                 ?: denseResults.find { it.second.chunkId == chunkId }?.second
 
             chunk?.let {
                 val hybridScore = lambda * denseScore + (1 - lambda) * bm25Score
                 Log.d("Hybrid", "Hybrid Score - ID: $chunkId | Dense: $denseScore | BM25: $bm25Score | Final: $hybridScore")
-                Pair(hybridScore, chunk)
+                Pair(hybridScore, it)
             }
         }
 
-        // Sort the rescored results by hybrid score in descending order and take the top N
+        // Sort by hybrid score descending and take top N
         val topResults = rescored.sortedByDescending { it.first }.take(n)
 
-        // Log the top N results
         topResults.forEachIndexed { index, pair ->
             Log.d("Hybrid", "Top[$index] - ID: ${pair.second.chunkId} | Hybrid Score: ${pair.first}")
         }
