@@ -69,6 +69,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.androidx.compose.koinViewModel
+import setProgressDialogText
 import showProgressDialog
 
 private val showDocDetailDialog = mutableStateOf(false)
@@ -256,6 +257,13 @@ private fun DocOperations(docsViewModel: DocsViewModel) {
                                 showProgressDialog()
                                 CoroutineScope(Dispatchers.IO).launch {
                                     docsViewModel.addDocumentFromAssets(context, path)
+                                    withContext(Dispatchers.Main) {
+                                        setProgressDialogText("Indexing chunks...")
+                                        showProgressDialog()
+                                    }
+
+                                    docsViewModel.rebuildLuceneIndex(context)
+
                                     withContext(Dispatchers.Main) {
                                         hideProgressDialog()
                                     }

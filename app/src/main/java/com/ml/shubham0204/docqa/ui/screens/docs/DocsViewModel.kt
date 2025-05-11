@@ -11,6 +11,7 @@ import com.ml.shubham0204.docqa.data.DocumentsDB
 import com.ml.shubham0204.docqa.di.Utils
 import com.ml.shubham0204.docqa.domain.embeddings.SentenceEmbeddingProvider
 import com.ml.shubham0204.docqa.domain.readers.Readers
+import com.ml.shubham0204.docqa.domain.retrievers.LuceneIndexer
 import com.ml.shubham0204.docqa.domain.splitters.SlidingWindowChunker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -192,6 +193,21 @@ class DocsViewModel(
             )
         }
         Log.d("ChunkDebug", "=== TOTAL CHUNKS: ${chunks.size} ===")
+
+//        LuceneIndexer.initializeLuceneIndex(context, chunksDB)
+    }
+
+    suspend fun rebuildLuceneIndex(context: Context) {
+        withContext(Dispatchers.IO) {
+            LuceneIndexer.clearIndex()
+            LuceneIndexer.initializeLuceneIndex(context, chunksDB)
+        }
+    }
+
+    fun removeDocument(docId: Long) {
+        documentsDB.removeDocument(docId)
+        chunksDB.removeChunks(docId)
+        LuceneIndexer.clearIndex()
     }
 
 //    suspend fun addDocument(context: Context) = withContext(Dispatchers.IO) {
@@ -284,12 +300,7 @@ class DocsViewModel(
 
     fun getAllDocuments(): Flow<List<Document>> = documentsDB.getAllDocuments()
 
-    fun removeDocument(docId: Long) {
-        documentsDB.removeDocument(docId)
-        chunksDB.removeChunks(docId)
-    }
-
-    fun getDocsCount(): Long = documentsDB.getDocsCount()
+       fun getDocsCount(): Long = documentsDB.getDocsCount()
 
     // Extracts the file name from the URL
     // Source: https://stackoverflow.com/a/11576046/13546426
