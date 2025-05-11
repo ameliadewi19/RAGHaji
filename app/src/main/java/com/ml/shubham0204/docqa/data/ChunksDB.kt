@@ -209,27 +209,27 @@ class ChunksDB {
         lambda: Float = 0.8f
     ): List<Pair<Float, Chunk>> {
         if (!LuceneIndexer.isIndexInitialized()) {
-            Log.e("HybridLucene", "Lucene index not initialized.")
+            Log.e("Hybrid", "Lucene index not initialized.")
             return emptyList()
         }
 
-        Log.d("HybridLucene", "Starting retrieval for hybrid chunks.")
+        Log.d("Hybrid", "Starting retrieval for hybrid chunks.")
 
         // Retrieve BM25 and Dense results
-        val bm25Results = getSimilarChunksSparse(context, query, n * 3)
-        val denseResults = getSimilarChunks(queryEmbedding, n * 3)
+        val bm25Results = getSimilarChunksSparse(context, query, 10)
+        val denseResults = getSimilarChunks(queryEmbedding, 10)
 
-        Log.d("HybridLucene", "BM25 result count: ${bm25Results.size}")
-        Log.d("HybridLucene", "ANN (dense) result count: ${denseResults.size}")
+        Log.d("Hybrid", "BM25 result count: ${bm25Results.size}")
+        Log.d("Hybrid", "ANN (dense) result count: ${denseResults.size}")
 
         // Mapping BM25 and Dense results into chunkId to score mapping
         val bm25Raw = bm25Results.associate {
-            Log.d("HybridLucene", "BM25 raw - ID: ${it.second.chunkId} | Score: ${it.first}")
+            Log.d("Hybrid", "BM25 raw - ID: ${it.second.chunkId} | Score: ${it.first}")
             it.second.chunkId to it.first
         }
 
         val denseRaw = denseResults.associate {
-            Log.d("HybridLucene", "Dense raw - ID: ${it.second.chunkId} | Score: ${it.first}")
+            Log.d("Hybrid", "Dense raw - ID: ${it.second.chunkId} | Score: ${it.first}")
             it.second.chunkId to it.first
         }
 
@@ -246,7 +246,7 @@ class ChunksDB {
 
         // Log all the combined scores for both BM25 and Dense for every chunk ID
         allScores.forEach { (chunkId, scores) ->
-            Log.d("HybridLucene", "All Scores for ID $chunkId - BM25: ${scores.first}, Dense: ${scores.second}")
+            Log.d("Hybrid", "All Scores for ID $chunkId - BM25: ${scores.first}, Dense: ${scores.second}")
         }
 
         // Normalize BM25 and Dense scores separately
@@ -255,11 +255,11 @@ class ChunksDB {
             val max = scores.values.maxOrNull() ?: 1f
             val range = if (max - min == 0f) 1f else max - min
 
-            Log.d("HybridLucene", "Normalizing scores. Min: $min, Max: $max, Range: $range")
+            Log.d("Hybrid", "Normalizing scores. Min: $min, Max: $max, Range: $range")
 
             return scores.mapValues { (chunkId, score) ->
                 val normalized = (score - min) / range
-                Log.d("HybridLucene", "Normalized - ID: $chunkId | Raw: $score | Normalized: $normalized")
+                Log.d("Hybrid", "Normalized - ID: $chunkId | Raw: $score | Normalized: $normalized")
                 normalized
             }
         }
