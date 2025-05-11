@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Doc-QA</string>
+    <string name="app_name">RAGHaji</string>
 
     <string name="prompt_1">
 Here is the retrieved context

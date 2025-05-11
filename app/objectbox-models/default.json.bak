@@ -5,7 +5,7 @@
   "entities": [
     {
       "id": "1:8449246619297061692",
-      "lastPropertyId": "8:7359431747445542971",
+      "lastPropertyId": "10:5408934383710186049",
       "name": "Chunk",
       "properties": [
         {
@@ -20,11 +20,6 @@
           "indexId": "1:5733915124461288139",
           "type": 6,
           "flags": 8
-        },
-        {
-          "id": "3:3339870338767803751",
-          "name": "chunkData",
-          "type": 9
         },
         {
           "id": "4:3036087631455216131",
@@ -51,6 +46,16 @@
         {
           "id": "8:7359431747445542971",
           "name": "parentChunkId",
+          "type": 9
+        },
+        {
+          "id": "9:8910650091187737341",
+          "name": "chunkText",
+          "type": 9
+        },
+        {
+          "id": "10:5408934383710186049",
+          "name": "Id",
           "type": 9
         }
       ],
@@ -128,7 +133,9 @@
   "modelVersionParserMinimum": 5,
   "retiredEntityUids": [],
   "retiredIndexUids": [],
-  "retiredPropertyUids": [],
+  "retiredPropertyUids": [
+    3339870338767803751
+  ],
   "retiredRelationUids": [],
   "version": 1
 }
