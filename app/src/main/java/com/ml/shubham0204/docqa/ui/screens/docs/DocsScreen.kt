@@ -209,13 +209,12 @@ private fun DocOperations(docsViewModel: DocsViewModel) {
 
     // Define chunk options
     val chunkOptions = listOf(
-        "sliding window 50 128" to "chunks/sliding_50_128.json",
-        "sliding window 100 128" to "chunks/sliding_100_128.json",
         "sliding window 50 256" to "chunks/sliding_50_256.json",
         "sliding window 100 256" to "chunks/sliding_100_256.json",
         "sliding window 150 256" to "chunks/sliding_150_256.json",
         "sliding window 50 512" to "chunks/sliding_50_512.json",
         "sliding window 100 512" to "chunks/sliding_100_512.json",
+        "sliding window 150 512" to "chunks/sliding_150_512.json",
         "small 128 to big 256" to "chunks/128_to_256.json",
         "small 256 to big 512" to "chunks/256_to_512.json"
     )
