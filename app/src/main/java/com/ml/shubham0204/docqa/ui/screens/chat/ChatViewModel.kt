@@ -197,21 +197,25 @@ Jawaban:
                 val retrievedChunks = chunksDB.getSimilarChunksSparse(context, query, n = topK)
                 Log.d("RETRIEVED CHUNK", "$retrievedChunks")
 //
-//                val retrievedContextList = ArrayList<RetrievedContext>()
-//                var jointContext = ""
+                val retrievedContextList = ArrayList<RetrievedContext>()
+                var jointContext = ""
+
+                var infoCounter = 1
+                for ((_, chunk) in retrievedChunks) {
+                    val infoText = "Informasi $infoCounter:\n${chunk.chunkText}\n---"
+                    Log.d("CHUNK", infoText)
+                    jointContext += "\n$infoText\n"
+                    retrievedContextList.add(RetrievedContext(chunk.docFileName, chunk.chunkText))
+                    infoCounter++
+                }
+
+//                val chunkList = retrievedChunks.map { it.second.chunkText }
+//                val jointContext = mergeChunksWithOverlap(chunkList)
 //
-//                for ((_, chunk) in retrievedChunks) {
-//                    Log.d("CHUNK","${chunk.chunkText}")
-//                    jointContext += " " + chunk.chunkText
-//                    retrievedContextList.add(RetrievedContext(chunk.docFileName, chunk.chunkText))
+//                val retrievedContextList = retrievedChunks.map {
+//                    RetrievedContext(it.second.docFileName, it.second.chunkText)
 //                }
 
-                val chunkList = retrievedChunks.map { it.second.chunkText }
-                val jointContext = mergeChunksWithOverlap(chunkList)
-
-                val retrievedContextList = retrievedChunks.map {
-                    RetrievedContext(it.second.docFileName, it.second.chunkText)
-                }
 
                 val retrieveDuration = System.currentTimeMillis() - retrieveStart
                 Log.d("ChatViewModel", "Waktu retrieve konteks (Lucene): $retrieveDuration ms")
@@ -221,6 +225,7 @@ Jawaban:
 Tugas Anda:
 - Pilih hanya bagian konteks yang relevan dengan pertanyaan.
 - Gunakan kalimat dari konteks secara langsung tanpa mengubah makna.
+- Jangan hanya menggunakan informasi pertama, tapi pertimbangkan semua bagian sebelum memberikan jawaban.
 - Jangan menambahkan informasi atau opini baru yang tidak ada dalam konteks.
 - Jawaban harus singkat dan langsung ke inti pertanyaan.
 - Hindari pengulangan dan penambahan penjelasan lain.
