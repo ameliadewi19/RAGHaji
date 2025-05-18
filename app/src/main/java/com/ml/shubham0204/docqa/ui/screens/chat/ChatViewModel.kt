@@ -117,28 +117,29 @@ class ChatViewModel(
             try {
                 val retrievedChunks = chunksDB.getSimilarChunks(query, n = topK)
                 Log.d("RETRIEVED CHUNK", "$retrievedChunks")
-//
-//                val chunkList = retrievedChunks.map { it.second.chunkText }
-//                val jointContext = mergeChunksWithOverlap(chunkList)
-//
-//                val retrievedContextList = retrievedChunks.map {
-//                    RetrievedContext(it.second.docFileName, it.second.chunkText)
-//                }
 
-                val retrievedContextList = ArrayList<RetrievedContext>()
-                var jointContext = ""
+                val chunkList = retrievedChunks.map { it.second.chunkText }
+                val jointContext = mergeChunksWithOverlap(chunkList)
 
-                for ((_, chunk) in retrievedChunks) {
-                    Log.d("CHUNK","${chunk.chunkText}")
-                    jointContext += " " + chunk.chunkText
-                    retrievedContextList.add(RetrievedContext(chunk.docFileName, chunk.chunkText))
+                val retrievedContextList = retrievedChunks.map {
+                    RetrievedContext(it.second.docFileName, it.second.chunkText)
                 }
+//
+//                val retrievedContextList = ArrayList<RetrievedContext>()
+//                var jointContext = ""
+//
+//                for ((_, chunk) in retrievedChunks) {
+//                    Log.d("CHUNK","${chunk.chunkText}")
+//                    jointContext += " " + chunk.chunkText
+//                    retrievedContextList.add(RetrievedContext(chunk.docFileName, chunk.chunkText))
+//                }
 
                 val retrieveDuration = System.currentTimeMillis() - retrieveStart
                 Log.d("ChatViewModel", "Waktu retrieve konteks: $retrieveDuration ms")
 
                 val inputPrompt = """
 <|im_start|>system
+
 Tugas Anda:
 - Pilih hanya bagian konteks yang relevan dengan pertanyaan.
 - Gunakan kalimat dari konteks secara langsung tanpa mengubah makna.
@@ -147,27 +148,46 @@ Tugas Anda:
 - Hindari pengulangan dan penambahan penjelasan lain.
 - Jangan memberikan kalimat tambahan yang tidak ada dalam konteks.
 - Jawaban hanya untuk menjawab pertanyaan yang diajukan.
-                
-<|im_end|>
+- Jangan membuat penutup, kesimpulan tambahan, atau rekomendasi.
 
+<|im_end|>
 <|im_start|>user
 === Konteks ===
 $jointContext
 ===============
-                
+
 Pertanyaan: $query
-                
+
 Jawaban:
 <|im_end|>
 <|im_start|>assistant
 """.trimIndent()
 
-                // Start streaming response
+                val tokenWindow = ArrayDeque<String>() // Jendela untuk cek <|im_end|
+                val streamBuffer = ArrayDeque<String>() // Buffer streaming satu langkah tertunda
+                val maxWindowSize = 15
+
                 llamaRemoteAPI.getResponsePerToken(inputPrompt, query, correctAnswer, retrieveDuration) { token ->
-                    // Update response state per token
-                    _responseState.value += token
-                    Log.d("STREAM TOKEN", "$token")
+                    tokenWindow.addLast(token)
+                    if (tokenWindow.size > maxWindowSize) tokenWindow.removeFirst()
+
+                    streamBuffer.addLast(token)
+
+                    val currentStream = tokenWindow.joinToString("")
+
+                    if (currentStream.contains("<|")) {
+                        // Drop semua token yang sedang di-buffer dan window
+                        streamBuffer.clear()
+                        Log.d("STREAM TOKEN", "[DROPPED] $token")
+                    }
+                    else if (streamBuffer.size > 1) {
+                        // Ambil dan tampilkan token pertama dari buffer jika aman
+                        val nextToken = streamBuffer.removeFirst()
+                        _responseState.value += nextToken
+                        Log.d("STREAM TOKEN", nextToken)
+                    }
                 }
+
                 _retrievedContextListState.value = retrievedContextList
             } catch (e: Exception) {
                 _responseState.value = "Error: ${e.message}"
@@ -196,59 +216,78 @@ Jawaban:
                 // Ambil N chunk terdekat dari Lucene
                 val retrievedChunks = chunksDB.getSimilarChunksSparse(context, query, n = topK)
                 Log.d("RETRIEVED CHUNK", "$retrievedChunks")
-//
-                val retrievedContextList = ArrayList<RetrievedContext>()
-                var jointContext = ""
 
-                var infoCounter = 1
-                for ((_, chunk) in retrievedChunks) {
-                    val infoText = "Informasi $infoCounter:\n${chunk.chunkText}\n---"
-                    Log.d("CHUNK", infoText)
-                    jointContext += "\n$infoText\n"
-                    retrievedContextList.add(RetrievedContext(chunk.docFileName, chunk.chunkText))
-                    infoCounter++
-                }
+//                val retrievedContextList = ArrayList<RetrievedContext>()
+//                var jointContext = ""
 
-//                val chunkList = retrievedChunks.map { it.second.chunkText }
-//                val jointContext = mergeChunksWithOverlap(chunkList)
-//
-//                val retrievedContextList = retrievedChunks.map {
-//                    RetrievedContext(it.second.docFileName, it.second.chunkText)
+//                var infoCounter = 1
+//                for ((_, chunk) in retrievedChunks) {
+//                    val infoText = "Informasi $infoCounter:\n${chunk.chunkText}\n---"
+//                    Log.d("CHUNK", infoText)
+//                    jointContext += "\n$infoText\n"
+//                    retrievedContextList.add(RetrievedContext(chunk.docFileName, chunk.chunkText))
+//                    infoCounter++
 //                }
 
+                val chunkList = retrievedChunks.map { it.second.chunkText }
+                val jointContext = mergeChunksWithOverlap(chunkList)
+
+                val retrievedContextList = retrievedChunks.map {
+                    RetrievedContext(it.second.docFileName, it.second.chunkText)
+                }
 
                 val retrieveDuration = System.currentTimeMillis() - retrieveStart
                 Log.d("ChatViewModel", "Waktu retrieve konteks (Lucene): $retrieveDuration ms")
 
                 val inputPrompt = """
 <|im_start|>system
+
 Tugas Anda:
 - Pilih hanya bagian konteks yang relevan dengan pertanyaan.
 - Gunakan kalimat dari konteks secara langsung tanpa mengubah makna.
-- Jangan hanya menggunakan informasi pertama, tapi pertimbangkan semua bagian sebelum memberikan jawaban.
 - Jangan menambahkan informasi atau opini baru yang tidak ada dalam konteks.
 - Jawaban harus singkat dan langsung ke inti pertanyaan.
 - Hindari pengulangan dan penambahan penjelasan lain.
 - Jangan memberikan kalimat tambahan yang tidak ada dalam konteks.
 - Jawaban hanya untuk menjawab pertanyaan yang diajukan.
-                
-<|im_end|>
+- Jangan membuat penutup, kesimpulan tambahan, atau rekomendasi.
 
+<|im_end|>
 <|im_start|>user
 === Konteks ===
 $jointContext
 ===============
-                
+
 Pertanyaan: $query
-                
+
 Jawaban:
 <|im_end|>
 <|im_start|>assistant
 """.trimIndent()
 
+                val tokenWindow = ArrayDeque<String>() // Jendela untuk cek <|im_end|
+                val streamBuffer = ArrayDeque<String>() // Buffer streaming satu langkah tertunda
+                val maxWindowSize = 15
+
                 llamaRemoteAPI.getResponsePerToken(inputPrompt, query, correctAnswer, retrieveDuration) { token ->
-                    _responseState.value += token
-                    Log.d("STREAM TOKEN", "$token")
+                    tokenWindow.addLast(token)
+                    if (tokenWindow.size > maxWindowSize) tokenWindow.removeFirst()
+
+                    streamBuffer.addLast(token)
+
+                    val currentStream = tokenWindow.joinToString("")
+
+                    if (currentStream.contains("<|")) {
+                        // Drop semua token yang sedang di-buffer dan window
+                        streamBuffer.clear()
+                        Log.d("STREAM TOKEN", "[DROPPED] $token")
+                    }
+                    else if (streamBuffer.size > 1) {
+                        // Ambil dan tampilkan token pertama dari buffer jika aman
+                        val nextToken = streamBuffer.removeFirst()
+                        _responseState.value += nextToken
+                        Log.d("STREAM TOKEN", nextToken)
+                    }
                 }
 
                 _retrievedContextListState.value = retrievedContextList
@@ -284,6 +323,7 @@ Jawaban:
                     n = topK,
                     lambda = lambda
                 )
+
                 Log.d("RETRIEVED CHUNK", "$retrievedChunks")
 
                 val chunkList = retrievedChunks.map { it.second.chunkText }
@@ -307,6 +347,7 @@ Jawaban:
 
                 val inputPrompt = """
 <|im_start|>system
+
 Tugas Anda:
 - Pilih hanya bagian konteks yang relevan dengan pertanyaan.
 - Gunakan kalimat dari konteks secara langsung tanpa mengubah makna.
@@ -315,16 +356,16 @@ Tugas Anda:
 - Hindari pengulangan dan penambahan penjelasan lain.
 - Jangan memberikan kalimat tambahan yang tidak ada dalam konteks.
 - Jawaban hanya untuk menjawab pertanyaan yang diajukan.
-                
-<|im_end|>
+- Jangan membuat penutup, kesimpulan tambahan, atau rekomendasi.
 
+<|im_end|>
 <|im_start|>user
 === Konteks ===
 $jointContext
 ===============
-                
+
 Pertanyaan: $query
-                
+
 Jawaban:
 <|im_end|>
 <|im_start|>assistant
@@ -349,9 +390,29 @@ Jawaban:
 //            Jawaban:
 //            """
 
+                val tokenWindow = ArrayDeque<String>() // Jendela untuk cek <|im_end|
+                val streamBuffer = ArrayDeque<String>() // Buffer streaming satu langkah tertunda
+                val maxWindowSize = 15
+
                 llamaRemoteAPI.getResponsePerToken(inputPrompt, query, correctAnswer, retrieveDuration) { token ->
-                    _responseState.value += token
-                    Log.d("STREAM TOKEN", "$token")
+                    tokenWindow.addLast(token)
+                    if (tokenWindow.size > maxWindowSize) tokenWindow.removeFirst()
+
+                    streamBuffer.addLast(token)
+
+                    val currentStream = tokenWindow.joinToString("")
+
+                    if (currentStream.contains("<|")) {
+                        // Drop semua token yang sedang di-buffer dan window
+                        streamBuffer.clear()
+                        Log.d("STREAM TOKEN", "[DROPPED] $token")
+                    }
+                    else if (streamBuffer.size > 1) {
+                        // Ambil dan tampilkan token pertama dari buffer jika aman
+                        val nextToken = streamBuffer.removeFirst()
+                        _responseState.value += nextToken
+                        Log.d("STREAM TOKEN", nextToken)
+                    }
                 }
 
                 _retrievedContextListState.value = retrievedContextList

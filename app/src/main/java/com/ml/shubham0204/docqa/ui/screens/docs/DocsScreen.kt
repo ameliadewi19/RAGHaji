@@ -216,7 +216,8 @@ private fun DocOperations(docsViewModel: DocsViewModel) {
         "sliding window 100 512" to "chunks/sliding_100_512.json",
         "sliding window 150 512" to "chunks/sliding_150_512.json",
         "small 128 to big 256" to "chunks/128_to_256.json",
-        "small 256 to big 512" to "chunks/256_to_512.json"
+        "small 256 to big 512" to "chunks/256_to_512.json",
+        "semantic chunking" to "chunks/chunks3.json"
     )
 
     val launcher =

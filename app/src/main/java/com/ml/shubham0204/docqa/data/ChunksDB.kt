@@ -157,19 +157,19 @@ class ChunksDB(
     }
 
     // Normalize BM25 and Dense scores separately
-    fun normalizeScores(scores: Map<Long, Float>): Map<Long, Float> {
-        val min = scores.values.minOrNull() ?: 0f
-        val max = scores.values.maxOrNull() ?: 1f
-        val range = if (max - min == 0f) 1f else max - min
-
-        Log.d("Hybrid", "Normalizing scores. Min: $min, Max: $max, Range: $range")
-
-        return scores.mapValues { (chunkId, score) ->
-            val normalized = (score - min) / range
-            Log.d("Hybrid", "Normalized - ID: $chunkId | Raw: $score | Normalized: $normalized")
-            normalized
-        }
-    }
+//    fun normalizeScores(scores: Map<Long, Float>): Map<Long, Float> {
+//        val min = scores.values.minOrNull() ?: 0f
+//        val max = scores.values.maxOrNull() ?: 1f
+//        val range = if (max - min == 0f) 1f else max - min
+//
+//        Log.d("Hybrid", "Normalizing scores. Min: $min, Max: $max, Range: $range")
+//
+//        return scores.mapValues { (chunkId, score) ->
+//            val normalized = (score - min) / range
+//            Log.d("Hybrid", "Normalized - ID: $chunkId | Raw: $score | Normalized: $normalized")
+//            normalized
+//        }
+//    }
 
     fun getHybridSimilarChunks(
         context: Context,

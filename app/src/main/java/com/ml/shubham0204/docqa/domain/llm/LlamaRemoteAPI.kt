@@ -25,6 +25,9 @@ class LlamaRemoteAPI(private val context: Context) {
     private var llamaAndroid: LLamaAndroid? = null
     private var isModelLoaded = false
 
+    private var modelNameFile = "qwen2-1_5b-instruct-q4_0.gguf"
+//    private var modelNameFile = "Llama-3.2-1B-Instruct-Q6_K_L.gguf"
+
     suspend fun initModel(): Boolean = withContext(Dispatchers.IO) {
 
         if (isModelLoaded) {
@@ -37,7 +40,7 @@ class LlamaRemoteAPI(private val context: Context) {
             copyGGUFModelFromAssets(context)
 
             llamaAndroid = LLamaAndroid.instance()
-            val modelFile = File(context.filesDir, "models/qwen2-1_5b-instruct-q4_0.gguf")
+            val modelFile = File(context.filesDir, "models/$modelNameFile")
             val modelPath = modelFile.absolutePath
 
             if (!modelFile.exists()) {
@@ -207,7 +210,7 @@ class LlamaRemoteAPI(private val context: Context) {
             downloadsFolder.mkdirs()
         }
 
-        val logFile = File(downloadsFolder, "log_chunk_100_512_top3_sparse.json")
+        val logFile = File(downloadsFolder, "sisa_hasil_final_chunk_100_512_dense.json")
         val gson = GsonBuilder().setPrettyPrinting().create()
 
         try {
@@ -265,7 +268,7 @@ class LlamaRemoteAPI(private val context: Context) {
 
     // Fungsi untuk menyalin model GGUF dari assets ke filesDir
     fun copyGGUFModelFromAssets(context: Context) {
-        val modelName = "qwen2-1_5b-instruct-q4_0.gguf"
+        val modelName = modelNameFile
         val modelFile = File(context.filesDir, "models/$modelName")
 
         // Jika model belum ada di filesDir, salin dari assets
