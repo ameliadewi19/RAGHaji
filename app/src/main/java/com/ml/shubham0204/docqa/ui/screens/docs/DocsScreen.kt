@@ -215,6 +215,8 @@ private fun DocOperations(docsViewModel: DocsViewModel) {
         "sliding window 50 512" to "chunks/sliding_50_512.json",
         "sliding window 100 512" to "chunks/sliding_100_512.json",
         "sliding window 150 512" to "chunks/sliding_150_512.json",
+        "semantic without overlap" to "chunks/semantic_without_overlap.json",
+        "semantic with overlap" to "chunks/semantic_with_overlap.json",
         "small 128 to big 256" to "chunks/128_to_256.json",
         "small 256 to big 512" to "chunks/256_to_512.json"
     )
