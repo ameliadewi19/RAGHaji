@@ -210,7 +210,7 @@ class LlamaRemoteAPI(private val context: Context) {
             downloadsFolder.mkdirs()
         }
 
-        val logFile = File(downloadsFolder, "sisa_hasil_final_chunk_100_512_dense.json")
+        val logFile = File(downloadsFolder, "hasil_final_chunk_150_512_hybrid.json")
         val gson = GsonBuilder().setPrettyPrinting().create()
 
         try {

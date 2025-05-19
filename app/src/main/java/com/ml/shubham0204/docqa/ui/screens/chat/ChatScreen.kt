@@ -400,7 +400,7 @@ fun loadQuestionsAndAnswersFromXlsx(context: Context): Pair<ArrayList<String>, A
 
     try {
         // Membuka file XLSX dari assets
-        val inputStream: InputStream = context.assets.open("dataset_pengujian_backup.xlsx")
+        val inputStream: InputStream = context.assets.open("dataset_pengujian_fiks.xlsx")
         val workbook: Workbook = WorkbookFactory.create(inputStream)
 
         // Mengambil sheet pertama
