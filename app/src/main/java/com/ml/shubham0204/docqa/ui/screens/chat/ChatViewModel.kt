@@ -20,6 +20,12 @@ import android.util.Log
 import com.ml.shubham0204.docqa.domain.retrievers.LuceneIndexer
 import org.json.JSONObject
 
+import org.json.JSONArray
+import java.io.File
+import android.os.Environment
+
+import kotlinx.coroutines.delay
+
 @KoinViewModel
 class ChatViewModel(
     private val context: Context,
@@ -100,6 +106,51 @@ class ChatViewModel(
         return merged.joinToString(" ")
     }
 
+
+    fun saveJson(
+        context: Context,
+        query: String,
+        chunks: List<Map<String, String?>>,  // izinkan nullable String  // List objek dengan key id dan chunk_text
+        filename: String = "hasil_retrieval_dense_150_256.json"
+    ) {
+        try {
+            val downloadsFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            if (!downloadsFolder.exists()) downloadsFolder.mkdirs()
+
+            val file = File(downloadsFolder, filename)
+
+            // Baca file dulu jika ada, parse jadi JSONArray
+            val jsonArray = if (file.exists()) {
+                val existingContent = file.readText()
+                if (existingContent.isNotBlank()) JSONArray(existingContent) else JSONArray()
+            } else {
+                JSONArray()
+            }
+
+            // Buat JSONObject baru
+            val newObject = JSONObject().apply {
+                put("query", query)
+                put("retrieved_chunks", JSONArray().apply {
+                    chunks.forEach { chunkMap ->
+                        val chunkObj = JSONObject()
+                        chunkObj.put("id", chunkMap["id"])
+                        chunkObj.put("chunk_text", chunkMap["chunk_text"])
+                        put(chunkObj)
+                    }
+                })
+            }
+
+            // Tambah objek baru ke array
+            jsonArray.put(newObject)
+
+            // Simpan ulang file dengan array lengkap
+            file.writeText(jsonArray.toString(4))  // Indent 4 spasi
+            Log.d("saveJson", "File saved as JSON array at ${file.absolutePath}")
+        } catch (e: Exception) {
+            Log.e("saveJson", "Failed to save JSON: ${e.message}")
+        }
+    }
+
     fun getAnswer(
         query: String,
         prompt: String,
@@ -116,9 +167,26 @@ class ChatViewModel(
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val retrievedChunks = chunksDB.getSimilarChunks(query, n = topK)
-                Log.d("RETRIEVED CHUNK", "$retrievedChunks")
+
+                val allChunksText = retrievedChunks.joinToString(separator = "\n\n") { chunk ->
+                    "Chunk:\n$chunk"
+                }
+
+                Log.d("RETRIEVED CHUNK", allChunksText)
 
                 val chunkList = retrievedChunks.map { it.second.chunkText }
+
+
+                val chunkListID = retrievedChunks.map {
+                    mapOf(
+                        "id" to it.second.Id,
+                        "chunk_text" to it.second.chunkText
+                    )
+                }
+                if (chunkList.isNotEmpty()) {
+                    saveJson(context, query, chunkListID)
+                }
+
                 val jointContext = mergeChunksWithOverlap(chunkList)
 
                 val retrievedContextList = retrievedChunks.map {
@@ -137,21 +205,65 @@ class ChatViewModel(
                 val retrieveDuration = System.currentTimeMillis() - retrieveStart
                 Log.d("ChatViewModel", "Waktu retrieve konteks: $retrieveDuration ms")
 
+//                val inputPrompt = """
+//<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+//
+//Cutting Knowledge Date: December 2023
+//Today Date: 26 Jul 2024
+//
+//Jawab berdasarkan konteks yang diberikan. Ambil informasi yang relevan dan boleh disusun ulang tanpa mengubah makna. Hindari tambahan informasi yang tidak ada di konteks.
+//
+//<|eot_id|><|start_header_id|>user<|end_header_id|>
+//
+//=== Konteks ===
+//$jointContext
+//===============
+//
+//Pertanyaan: $query
+//
+//Jawaban:
+//<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+//""".trimIndent()
+
+//                val inputPrompt = """
+//<|im_start|>system
+//
+//Tugas Anda:
+//- Pilih hanya bagian konteks yang relevan dengan pertanyaan.
+//- Gunakan kalimat dari konteks secara langsung tanpa mengubah makna.
+//- Jangan menambahkan informasi atau opini baru yang tidak ada dalam konteks.
+//- Jawaban harus singkat dan langsung ke inti pertanyaan.
+//- Hindari pengulangan dan penambahan penjelasan lain.
+//- Jangan memberikan kalimat tambahan yang tidak ada dalam konteks.
+//- Jawaban hanya untuk menjawab pertanyaan yang diajukan.
+//- Jangan membuat penutup, kesimpulan tambahan, atau rekomendasi.
+//
+//<|im_end|>
+//<|im_start|>user
+//=== Konteks ===
+//$jointContext
+//===============
+//
+//Pertanyaan: $query
+//
+//Jawaban:
+//<|im_end|>
+//<|im_start|>assistant
+//""".trimIndent()
+
                 val inputPrompt = """
-<|im_start|>system
-
+<bos><start_of_turn>user
 Tugas Anda:
-- Pilih hanya bagian konteks yang relevan dengan pertanyaan.
+- Pilih bagian konteks yang relevan dengan pertanyaan.
 - Gunakan kalimat dari konteks secara langsung tanpa mengubah makna.
-- Jangan menambahkan informasi atau opini baru yang tidak ada dalam konteks.
-- Jawaban harus singkat dan langsung ke inti pertanyaan.
-- Hindari pengulangan dan penambahan penjelasan lain.
-- Jangan memberikan kalimat tambahan yang tidak ada dalam konteks.
-- Jawaban hanya untuk menjawab pertanyaan yang diajukan.
-- Jangan membuat penutup, kesimpulan tambahan, atau rekomendasi.
+- Anda boleh menjelaskan secara wajar agar jawaban mudah dipahami, selama tetap berdasarkan konteks.
+- Jangan menambahkan informasi atau opini yang tidak ada dalam konteks.
+- Jawaban harus jelas, relevan, dan cukup untuk menjawab pertanyaan.
+- Gunakan format kalimat yang rapi dan mudah dibaca.
+- Perhatikan spasi, tanda baca, dan baris baru jika diperlukan.
+- Hindari pengulangan yang tidak perlu.
+- Tidak perlu membuat kesimpulan atau rekomendasi kecuali disebut dalam konteks.
 
-<|im_end|>
-<|im_start|>user
 === Konteks ===
 $jointContext
 ===============
@@ -159,13 +271,12 @@ $jointContext
 Pertanyaan: $query
 
 Jawaban:
-<|im_end|>
-<|im_start|>assistant
+<start_of_turn>model
 """.trimIndent()
 
                 val tokenWindow = ArrayDeque<String>() // Jendela untuk cek <|im_end|
                 val streamBuffer = ArrayDeque<String>() // Buffer streaming satu langkah tertunda
-                val maxWindowSize = 15
+                val maxWindowSize = 30
 
                 llamaRemoteAPI.getResponsePerToken(inputPrompt, query, correctAnswer, retrieveDuration) { token ->
                     tokenWindow.addLast(token)
@@ -175,7 +286,7 @@ Jawaban:
 
                     val currentStream = tokenWindow.joinToString("")
 
-                    if (currentStream.contains("<|")) {
+                    if (currentStream.contains("</")) {
                         // Drop semua token yang sedang di-buffer dan window
                         streamBuffer.clear()
                         Log.d("STREAM TOKEN", "[DROPPED] $token")
@@ -230,6 +341,17 @@ Jawaban:
 //                }
 
                 val chunkList = retrievedChunks.map { it.second.chunkText }
+
+                val chunkListID = retrievedChunks.map {
+                    mapOf(
+                        "id" to it.second.Id,
+                        "chunk_text" to it.second.chunkText
+                    )
+                }
+//                if (chunkList.isNotEmpty()) {
+//                    saveJson(context, query, chunkListID)
+//                }
+
                 val jointContext = mergeChunksWithOverlap(chunkList)
 
                 val retrievedContextList = retrievedChunks.map {
@@ -240,20 +362,18 @@ Jawaban:
                 Log.d("ChatViewModel", "Waktu retrieve konteks (Lucene): $retrieveDuration ms")
 
                 val inputPrompt = """
-<|im_start|>system
-
+<bos><start_of_turn>user
 Tugas Anda:
-- Pilih hanya bagian konteks yang relevan dengan pertanyaan.
+- Pilih bagian konteks yang relevan dengan pertanyaan.
 - Gunakan kalimat dari konteks secara langsung tanpa mengubah makna.
-- Jangan menambahkan informasi atau opini baru yang tidak ada dalam konteks.
-- Jawaban harus singkat dan langsung ke inti pertanyaan.
-- Hindari pengulangan dan penambahan penjelasan lain.
-- Jangan memberikan kalimat tambahan yang tidak ada dalam konteks.
-- Jawaban hanya untuk menjawab pertanyaan yang diajukan.
-- Jangan membuat penutup, kesimpulan tambahan, atau rekomendasi.
+- Anda boleh menjelaskan secara wajar agar jawaban mudah dipahami, selama tetap berdasarkan konteks.
+- Jangan menambahkan informasi atau opini yang tidak ada dalam konteks.
+- Jawaban harus jelas, relevan, dan cukup untuk menjawab pertanyaan.
+- Gunakan format kalimat yang rapi dan mudah dibaca.
+- Perhatikan spasi, tanda baca, dan baris baru jika diperlukan.
+- Hindari pengulangan yang tidak perlu.
+- Tidak perlu membuat kesimpulan atau rekomendasi kecuali disebut dalam konteks.
 
-<|im_end|>
-<|im_start|>user
 === Konteks ===
 $jointContext
 ===============
@@ -261,13 +381,12 @@ $jointContext
 Pertanyaan: $query
 
 Jawaban:
-<|im_end|>
-<|im_start|>assistant
+<start_of_turn>model
 """.trimIndent()
 
                 val tokenWindow = ArrayDeque<String>() // Jendela untuk cek <|im_end|
                 val streamBuffer = ArrayDeque<String>() // Buffer streaming satu langkah tertunda
-                val maxWindowSize = 15
+                val maxWindowSize = 30
 
                 llamaRemoteAPI.getResponsePerToken(inputPrompt, query, correctAnswer, retrieveDuration) { token ->
                     tokenWindow.addLast(token)
@@ -277,7 +396,7 @@ Jawaban:
 
                     val currentStream = tokenWindow.joinToString("")
 
-                    if (currentStream.contains("<|")) {
+                    if (currentStream.contains("</")) {
                         // Drop semua token yang sedang di-buffer dan window
                         streamBuffer.clear()
                         Log.d("STREAM TOKEN", "[DROPPED] $token")
@@ -327,6 +446,17 @@ Jawaban:
                 Log.d("RETRIEVED CHUNK", "$retrievedChunks")
 
                 val chunkList = retrievedChunks.map { it.second.chunkText }
+
+                val chunkListID = retrievedChunks.map {
+                    mapOf(
+                        "id" to it.second.Id,
+                        "chunk_text" to it.second.chunkText
+                    )
+                }
+                if (chunkList.isNotEmpty()) {
+                    saveJson(context, query, chunkListID)
+                }
+
                 val jointContext = mergeChunksWithOverlap(chunkList)
 
                 val retrievedContextList = retrievedChunks.map {
@@ -346,20 +476,18 @@ Jawaban:
                 Log.d("ChatViewModel", "Waktu retrieve konteks (Hybrid): $retrieveDuration ms")
 
                 val inputPrompt = """
-<|im_start|>system
-
+<bos><start_of_turn>user
 Tugas Anda:
-- Pilih hanya bagian konteks yang relevan dengan pertanyaan.
+- Pilih bagian konteks yang relevan dengan pertanyaan.
 - Gunakan kalimat dari konteks secara langsung tanpa mengubah makna.
-- Jangan menambahkan informasi atau opini baru yang tidak ada dalam konteks.
-- Jawaban harus singkat dan langsung ke inti pertanyaan.
-- Hindari pengulangan dan penambahan penjelasan lain.
-- Jangan memberikan kalimat tambahan yang tidak ada dalam konteks.
-- Jawaban hanya untuk menjawab pertanyaan yang diajukan.
-- Jangan membuat penutup, kesimpulan tambahan, atau rekomendasi.
+- Anda boleh menjelaskan secara wajar agar jawaban mudah dipahami, selama tetap berdasarkan konteks.
+- Jangan menambahkan informasi atau opini yang tidak ada dalam konteks.
+- Jawaban harus jelas, relevan, dan cukup untuk menjawab pertanyaan.
+- Gunakan format kalimat yang rapi dan mudah dibaca.
+- Perhatikan spasi, tanda baca, dan baris baru jika diperlukan.
+- Hindari pengulangan yang tidak perlu.
+- Tidak perlu membuat kesimpulan atau rekomendasi kecuali disebut dalam konteks.
 
-<|im_end|>
-<|im_start|>user
 === Konteks ===
 $jointContext
 ===============
@@ -367,8 +495,7 @@ $jointContext
 Pertanyaan: $query
 
 Jawaban:
-<|im_end|>
-<|im_start|>assistant
+<start_of_turn>model
 """.trimIndent()
 
 //                val inputPrompt = """
@@ -392,7 +519,7 @@ Jawaban:
 
                 val tokenWindow = ArrayDeque<String>() // Jendela untuk cek <|im_end|
                 val streamBuffer = ArrayDeque<String>() // Buffer streaming satu langkah tertunda
-                val maxWindowSize = 15
+                val maxWindowSize = 30
 
                 llamaRemoteAPI.getResponsePerToken(inputPrompt, query, correctAnswer, retrieveDuration) { token ->
                     tokenWindow.addLast(token)
@@ -402,7 +529,7 @@ Jawaban:
 
                     val currentStream = tokenWindow.joinToString("")
 
-                    if (currentStream.contains("<|")) {
+                    if (currentStream.contains("</")) {
                         // Drop semua token yang sedang di-buffer dan window
                         streamBuffer.clear()
                         Log.d("STREAM TOKEN", "[DROPPED] $token")

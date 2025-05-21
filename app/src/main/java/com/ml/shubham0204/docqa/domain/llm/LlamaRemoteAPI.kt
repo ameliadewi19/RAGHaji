@@ -25,17 +25,47 @@ class LlamaRemoteAPI(private val context: Context) {
     private var llamaAndroid: LLamaAndroid? = null
     private var isModelLoaded = false
 
-    private var modelNameFile = "qwen2-1_5b-instruct-q4_0.gguf"
+//    private var modelNameFile = "qwen2-1_5b-instruct-q4_0.gguf"
 //    private var modelNameFile = "Llama-3.2-1B-Instruct-Q6_K_L.gguf"
+    private var modelNameFile = "gemma-2-2b-it-Q4_K_M.gguf"
 
-    suspend fun initModel(): Boolean = withContext(Dispatchers.IO) {
+    val tokensHajiUmrah = listOf(
+        // Rukun Haji/Umrah
+        "ihram", "thawaf", "sa'i", "wukuf", "mabit", "lontar_jumrah", "tahalul",
+        "miqat", "tawaf_qudum", "tawaf_ifadhah", "tawaf_wada",
 
-        if (isModelLoaded) {
+        // Lokasi
+        "arafah", "mina", "muzdalifah", "jamarat", "jamrah_ula", "jamrah_wustha",
+        "jamrah_aqabah", "hajar_aswad", "maqam_ibrahim", "multazam", "hijr_ismail",
+
+        // Aktivitas
+        "talbiyah", "niat_ihram", "doa_thawaf", "lempar_jumrah", "mabit_muzdalifah",
+        "potong_rambut", "dam", "dam_tamattu", "dam_qiran",
+
+        // Pakaian & Perlengkapan
+        "kain_ihram", "idhtiba", "raml",
+
+        // Waktu
+        "tarwiyah", "yaum_arafah", "nafar_awal", "nafar_tsani",
+
+        // Istilah Fikih
+        "wajib_haji", "sunah_haji", "larangan_ihram", "fidyah", "haji_tamattu",
+        "haji_qiran", "haji_ifrad"
+    )
+
+    suspend fun initModel(forceReload: Boolean = false): Boolean = withContext(Dispatchers.IO) {
+
+        if (isModelLoaded && !forceReload) {
             Log.d("LLAMA", "Model already initialized.")
             return@withContext true
         }
 
         return@withContext try {
+            if (forceReload) {
+                llamaAndroid?.unload() // <-- Tambah baris ini kalau ada dukungan unload
+                isModelLoaded = false
+            }
+
             // Pastikan model sudah disalin ke filesDir
             copyGGUFModelFromAssets(context)
 
@@ -56,6 +86,9 @@ class LlamaRemoteAPI(private val context: Context) {
                 temp = 0.8f
             )
 
+//            // Tambahkan token khusus setelah model loaded
+//            addCustomTokens(tokensHajiUmrah)
+
             Log.d("LLAMA", "Model loaded from $modelPath")
             isModelLoaded = true
             true
@@ -64,6 +97,31 @@ class LlamaRemoteAPI(private val context: Context) {
             false
         }
     }
+
+    // Fungsi untuk menambahkan token ke vocab model
+//    private fun addCustomTokens(tokens: List<String>) {
+//        try {
+//            // Pastikan model sudah di-load
+//            if (llamaAndroid == null) throw IllegalStateException("Model not loaded")
+//
+//            // Dapatkan native context dari binding JNI
+//            val ctx = llamaAndroid?.getNativeContext() ?: return
+//
+//            // Tambahkan setiap token
+//            tokens.forEach { token ->
+//                // Gunakan JNI call ke native Llama.cpp function
+//                llama_model_add_token(
+//                    ctx,
+//                    token,
+//                    false // false = bukan special token
+//                )
+//            }
+//
+//            Log.d("LLAMA", "${tokens.size} tokens added to vocab")
+//        } catch (e: Exception) {
+//            Log.e("LLAMA", "Failed to add tokens", e)
+//        }
+//    }
 
     suspend fun getResponsePerToken(
         prompt: String,
@@ -74,7 +132,7 @@ class LlamaRemoteAPI(private val context: Context) {
     ): String? = withContext(Dispatchers.IO) {
         try {
             val totalStart = System.currentTimeMillis()
-            initModel()
+            initModel(forceReload = true) // <-- ini bikin selalu fresh
 
             val inputTokens = prompt.split("\\s+".toRegex()).size
 
@@ -210,7 +268,8 @@ class LlamaRemoteAPI(private val context: Context) {
             downloadsFolder.mkdirs()
         }
 
-        val logFile = File(downloadsFolder, "hasil_final_chunk_150_512_hybrid.json")
+        val logFile = File(downloadsFolder, "gemma_150_256_sparse.json")
+//        val logFile = File(downloadsFolder, "hasil_final_chunk_150_256_hybrid.json")
         val gson = GsonBuilder().setPrettyPrinting().create()
 
         try {

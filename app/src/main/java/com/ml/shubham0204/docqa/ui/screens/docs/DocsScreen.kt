@@ -4,6 +4,7 @@ import AppProgressDialog
 import android.content.Intent
 import android.provider.OpenableColumns
 import android.text.format.DateUtils
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts

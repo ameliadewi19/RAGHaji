@@ -72,7 +72,8 @@ class ChunksDB(
         val expandedQuery = queryExpander.expandQuery(query)
         Log.d("EXPANDED QUERY", "$expandedQuery")
 
-        val queryEmbedding = sentenceEncoder.encodeText(expandedQuery)
+//        val queryEmbedding = sentenceEncoder.encodeText(expandedQuery)
+        val queryEmbedding = sentenceEncoder.encodeText("query: $expandedQuery")
         /*
         Use maxResultCount to set the maximum number of objects to return by the ANN condition.
         Hint: it can also be used as the "ef" HNSW parameter to increase the search quality in combination
@@ -80,12 +81,29 @@ class ChunksDB(
         that are of potentially better quality than just passing in 10 for maxResultCount
         (quality/performance tradeoff).
          */
-        return chunksBox
-            .query(Chunk_.chunkEmbedding.nearestNeighbors(queryEmbedding, 25))
+        val results = chunksBox
+            .query(Chunk_.chunkEmbedding.nearestNeighbors(queryEmbedding, 50))
             .build()
-            .findWithScores()
-            .map { Pair(it.score.toFloat(), it.get()) }
-            .subList(0, n)
+            .find()
+
+        results.forEachIndexed { i, chunk ->
+            Log.d("CHUNK_RESULT", "Chunk #$i: ${chunk.chunkText.take(200)}...") // batasi 200 karakter
+        }
+
+        val scoredResults = results.map {
+            val sim = cosineSimilarity(queryEmbedding, it.chunkEmbedding)
+            Pair(sim, it)
+        }.sortedByDescending { it.first }
+            .take(n)
+
+        return scoredResults
+
+//        return chunksBox
+//            .query(Chunk_.chunkEmbedding.nearestNeighbors(queryEmbedding, 25))
+//            .build()
+//            .findWithScores()
+//            .map { Pair(it.score.toFloat(), it.get()) }
+//            .subList(0, n)
     }
 
     fun getSimilarChunksSparse(

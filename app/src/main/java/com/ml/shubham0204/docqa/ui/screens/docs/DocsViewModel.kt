@@ -50,13 +50,21 @@ class DocsViewModel(
             )
         )
 
+        Log.d("Embedding", "Test Tambah")
+
+
         setProgressDialogText("Adding chunks to database...")
 
         val size = chunks.size
         chunks.forEachIndexed { index, chunkJson ->
             setProgressDialogText("Added ${index + 1}/$size chunk(s) to database...")
 
-            val embedding = sentenceEncoder.encodeText(chunkJson.chunk_text)
+//            val embedding = sentenceEncoder.encodeText(chunkJson.chunk_text)
+            val embedding = sentenceEncoder.encodeText("passage: $chunkJson.chunk_text")
+
+            // 🔽 Tambahkan log untuk embedding
+            Log.d("EmbeddingDebug", "Chunk ${index + 1} embedding size: ${embedding.size}")
+            Log.d("EmbeddingDebug", "Chunk ${index + 1} sample: ${embedding.take(5)}") // ambil 5 nilai awal
 
             chunksDB.addChunk(
                 Chunk(
@@ -78,7 +86,7 @@ class DocsViewModel(
         }
         Log.d("ChunkDebug", "=== TOTAL CHUNKS: ${chunks.size} ===")
 
-//        LuceneIndexer.initializeLuceneIndex(context, chunksDB)
+//    LuceneIndexer.initializeLuceneIndex(context, chunksDB)
     }
 
     suspend fun rebuildLuceneIndex(context: Context) {
