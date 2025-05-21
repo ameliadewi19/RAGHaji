@@ -5,7 +5,7 @@
   "entities": [
     {
       "id": "1:8449246619297061692",
-      "lastPropertyId": "5:905490671636322609",
+      "lastPropertyId": "10:5408934383710186049",
       "name": "Chunk",
       "properties": [
         {
@@ -22,11 +22,6 @@
           "flags": 8
         },
         {
-          "id": "3:3339870338767803751",
-          "name": "chunkData",
-          "type": 9
-        },
-        {
           "id": "4:3036087631455216131",
           "name": "chunkEmbedding",
           "indexId": "2:6017931583076154525",
@@ -36,6 +31,31 @@
         {
           "id": "5:905490671636322609",
           "name": "docFileName",
+          "type": 9
+        },
+        {
+          "id": "6:5558389520657761270",
+          "name": "chunkSize",
+          "type": 5
+        },
+        {
+          "id": "7:4078494474898866005",
+          "name": "chunkUuid",
+          "type": 9
+        },
+        {
+          "id": "8:7359431747445542971",
+          "name": "parentChunkId",
+          "type": 9
+        },
+        {
+          "id": "9:8910650091187737341",
+          "name": "chunkText",
+          "type": 9
+        },
+        {
+          "id": "10:5408934383710186049",
+          "name": "Id",
           "type": 9
         }
       ],
@@ -69,9 +89,43 @@
         }
       ],
       "relations": []
+    },
+    {
+      "id": "3:4411229397432294813",
+      "lastPropertyId": "5:868029209953554221",
+      "name": "ChunkNode",
+      "properties": [
+        {
+          "id": "1:7248606151690979687",
+          "name": "localId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:5344034060666687841",
+          "name": "id",
+          "type": 9
+        },
+        {
+          "id": "3:4841648557167769599",
+          "name": "text",
+          "type": 9
+        },
+        {
+          "id": "4:7143201490067549486",
+          "name": "size",
+          "type": 5
+        },
+        {
+          "id": "5:868029209953554221",
+          "name": "parentId",
+          "type": 9
+        }
+      ],
+      "relations": []
     }
   ],
-  "lastEntityId": "2:1370145163078906664",
+  "lastEntityId": "3:4411229397432294813",
   "lastIndexId": "2:6017931583076154525",
   "lastRelationId": "0:0",
   "lastSequenceId": "0:0",
@@ -79,7 +133,9 @@
   "modelVersionParserMinimum": 5,
   "retiredEntityUids": [],
   "retiredIndexUids": [],
-  "retiredPropertyUids": [],
+  "retiredPropertyUids": [
+    3339870338767803751
+  ],
   "retiredRelationUids": [],
   "version": 1
 }

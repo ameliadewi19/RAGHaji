@@ -6,6 +6,8 @@ import com.google.ai.client.generativeai.type.GenerationConfig
 import com.google.ai.client.generativeai.type.content
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.llama.cpp.LLamaAndroid
+import kotlinx.coroutines.flow.firstOrNull
 
 class GeminiRemoteAPI(
     private val apiKey: String,
@@ -37,7 +39,20 @@ class GeminiRemoteAPI(
     suspend fun getResponse(prompt: String): String? =
         withContext(Dispatchers.IO) {
             Log.e("APP", "Prompt given: $prompt")
-            val response = generativeModel.generateContent(prompt)
-            return@withContext response.text
+            val response = "Ini adalah hasilnya"
+            return@withContext response
         }
+
+//    suspend fun getResponse(prompt: String): String? = withContext(Dispatchers.IO) {
+//        try {
+//            Log.d("LLAMA", "Prompt given: $prompt")
+//            // Jalankan prompt menggunakan LLamaAndroid dan ambil hasil pertamanya
+//            val response = llamaAndroid.send(prompt).firstOrNull()
+//            Log.d("LLAMA", "Response: $response")
+//            return@withContext response
+//        } catch (e: Exception) {
+//            Log.e("LLAMA", "Error while getting response", e)
+//            return@withContext null
+//        }
+//    }
 }

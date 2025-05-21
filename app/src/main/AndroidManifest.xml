@@ -4,8 +4,18 @@
 
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+
+    <uses-sdk
+        android:minSdkVersion="26"
+        android:targetSdkVersion="35"
+        tools:overrideLibrary="android.llama.cpp" />
+
     <application
         android:name=".DocQAApplication"
+        android:largeHeap="true"
         android:allowBackup="true"
         android:usesCleartextTraffic="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -28,5 +38,7 @@
             </intent-filter>
         </activity>
     </application>
+
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
 </manifest>
