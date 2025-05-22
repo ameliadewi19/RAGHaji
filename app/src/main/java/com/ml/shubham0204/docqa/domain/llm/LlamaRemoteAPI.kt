@@ -25,19 +25,53 @@ class LlamaRemoteAPI(private val context: Context) {
     private var llamaAndroid: LLamaAndroid? = null
     private var isModelLoaded = false
 
-    suspend fun initModel(): Boolean = withContext(Dispatchers.IO) {
+//    private var modelNameFile = "qwen2-1_5b-instruct-q4_0.gguf"
+//    private var modelNameFile = "Llama-3.2-1B-Instruct-Q6_K_L.gguf"
+    private var modelNameFile = "gemma-2-2b-it-Q4_K_M.gguf"
+    private var jsonFileName = "gemma-128-50-sparse.json"
 
-        if (isModelLoaded) {
+    val tokensHajiUmrah = listOf(
+        // Rukun Haji/Umrah
+        "ihram", "thawaf", "sa'i", "wukuf", "mabit", "lontar_jumrah", "tahalul",
+        "miqat", "tawaf_qudum", "tawaf_ifadhah", "tawaf_wada",
+
+        // Lokasi
+        "arafah", "mina", "muzdalifah", "jamarat", "jamrah_ula", "jamrah_wustha",
+        "jamrah_aqabah", "hajar_aswad", "maqam_ibrahim", "multazam", "hijr_ismail",
+
+        // Aktivitas
+        "talbiyah", "niat_ihram", "doa_thawaf", "lempar_jumrah", "mabit_muzdalifah",
+        "potong_rambut", "dam", "dam_tamattu", "dam_qiran",
+
+        // Pakaian & Perlengkapan
+        "kain_ihram", "idhtiba", "raml",
+
+        // Waktu
+        "tarwiyah", "yaum_arafah", "nafar_awal", "nafar_tsani",
+
+        // Istilah Fikih
+        "wajib_haji", "sunah_haji", "larangan_ihram", "fidyah", "haji_tamattu",
+        "haji_qiran", "haji_ifrad"
+    )
+
+    suspend fun initModel(forceReload: Boolean = false): Boolean = withContext(Dispatchers.IO) {
+
+        if (isModelLoaded && !forceReload) {
             Log.d("LLAMA", "Model already initialized.")
             return@withContext true
         }
 
         return@withContext try {
+            if (forceReload) {
+                llamaAndroid?.unload() // <-- Tambah baris ini kalau ada dukungan unload
+                isModelLoaded = false
+            }
+
             // Pastikan model sudah disalin ke filesDir
             copyGGUFModelFromAssets(context)
 
             llamaAndroid = LLamaAndroid.instance()
-            val modelFile = File(context.filesDir, "models/qwen2-1_5b-instruct-q4_0.gguf")
+            val modelFile = File(context.filesDir, "models/$modelNameFile")
             val modelPath = modelFile.absolutePath
 
             if (!modelFile.exists()) {
@@ -53,6 +87,9 @@ class LlamaRemoteAPI(private val context: Context) {
                 temp = 0.8f
             )
 
+//            // Tambahkan token khusus setelah model loaded
+//            addCustomTokens(tokensHajiUmrah)
+
             Log.d("LLAMA", "Model loaded from $modelPath")
             isModelLoaded = true
             true
@@ -61,6 +98,31 @@ class LlamaRemoteAPI(private val context: Context) {
             false
         }
     }
+
+    // Fungsi untuk menambahkan token ke vocab model
+//    private fun addCustomTokens(tokens: List<String>) {
+//        try {
+//            // Pastikan model sudah di-load
+//            if (llamaAndroid == null) throw IllegalStateException("Model not loaded")
+//
+//            // Dapatkan native context dari binding JNI
+//            val ctx = llamaAndroid?.getNativeContext() ?: return
+//
+//            // Tambahkan setiap token
+//            tokens.forEach { token ->
+//                // Gunakan JNI call ke native Llama.cpp function
+//                llama_model_add_token(
+//                    ctx,
+//                    token,
+//                    false // false = bukan special token
+//                )
+//            }
+//
+//            Log.d("LLAMA", "${tokens.size} tokens added to vocab")
+//        } catch (e: Exception) {
+//            Log.e("LLAMA", "Failed to add tokens", e)
+//        }
+//    }
 
     suspend fun getResponsePerToken(
         prompt: String,
@@ -71,26 +133,32 @@ class LlamaRemoteAPI(private val context: Context) {
     ): String? = withContext(Dispatchers.IO) {
         try {
             val totalStart = System.currentTimeMillis()
-            initModel()
+            initModel(forceReload = true) // <-- ini bikin selalu fresh
 
             val inputTokens = prompt.split("\\s+".toRegex()).size
 
-            Log.d("PROMPT", "Prompt: $prompt")
+            Log.d("PROMPT", "$prompt")
 
             val resultTokens = StringBuilder()
             val inferenceStart = System.currentTimeMillis()
             var firstTokenTime: Long? = null
 
-            val konteks = """
-             $prompt
-         """.trimIndent()
+            val stopToken = "</s>"
 
-            llamaAndroid?.send(konteks)?.collect { token ->
+            llamaAndroid?.send(prompt)?.collect { token ->
                 if (firstTokenTime == null) {
                     firstTokenTime = System.currentTimeMillis()
                 }
-                resultTokens.append(token)
                 Log.d("TOKEN", "Received token: $token")
+
+                // Cek token selesai
+                if (token == stopToken) {
+                    Log.d("LLAMA", "Stop token detected, ending generation.")
+                    // Kalau ketemu stop token, hentikan koleksi token
+                    return@collect
+                }
+
+                resultTokens.append(token)
 
                 // Kirim ke UI/WebSocket/dsb via callback
                 withContext(Dispatchers.Main) {
@@ -211,7 +279,8 @@ class LlamaRemoteAPI(private val context: Context) {
             downloadsFolder.mkdirs()
         }
 
-        val logFile = File(downloadsFolder, "log_hasil_1.2.2.json")
+        val logFile = File(downloadsFolder, jsonFileName)
+//        val logFile = File(downloadsFolder, "hasil_final_chunk_150_256_hybrid.json")
         val gson = GsonBuilder().setPrettyPrinting().create()
 
         try {
@@ -246,34 +315,30 @@ class LlamaRemoteAPI(private val context: Context) {
         }
     }
 
-    suspend fun getResponse(prompt: String): String? = withContext(Dispatchers.IO) {
-        try {
-            // Inisialisasi model (pastikan ini hanya dijalankan sekali)
-            initModel()
-
-            // Tambahkan konteks sebelum prompt utama
-            val context = """
-            $prompt
-        """.trimIndent()
-
-            Log.d("LLAMA", "Prompt length (chars): ${context.length}")
-            Log.d("LLAMA", "Prompt content: \n$context")
-            val result = llamaAndroid?.send(context)?.toList()?.joinToString("")?.trim()
-
-            Log.d("LLamaResult", "Result: $result")
-
-            Log.d("LLAMA", "Response: $result")
-            return@withContext result
-
-        } catch (e: Exception) {
-            Log.e("LLAMA", "Error during prompt execution", e)
-            return@withContext null
-        }
-    }
+//    suspend fun getResponse(prompt: String): String? = withContext(Dispatchers.IO) {
+//        try {
+//            // Inisialisasi model (pastikan ini hanya dijalankan sekali)
+//            initModel()
+//
+//
+//            Log.d("LLAMA", "Prompt length (chars): ${context.length}")
+//            Log.d("LLAMA", "Prompt content: \n$context")
+//            val result = llamaAndroid?.send(prompt)?.toList()?.joinToString("")?.trim()
+//
+//            Log.d("LLamaResult", "Result: $result")
+//
+//            Log.d("LLAMA", "Response: $result")
+//            return@withContext result
+//
+//        } catch (e: Exception) {
+//            Log.e("LLAMA", "Error during prompt execution", e)
+//            return@withContext null
+//        }
+//    }
 
     // Fungsi untuk menyalin model GGUF dari assets ke filesDir
     fun copyGGUFModelFromAssets(context: Context) {
-        val modelName = "qwen2-1_5b-instruct-q4_0.gguf"
+        val modelName = modelNameFile
         val modelFile = File(context.filesDir, "models/$modelName")
 
         // Jika model belum ada di filesDir, salin dari assets
@@ -297,11 +362,10 @@ class LlamaRemoteAPI(private val context: Context) {
                 }
             } catch (e: IOException) {
                 Log.e("MODEL_COPY", "Error copying model from assets", e)
-            } catch (e: Exception) {
-                Log.e("MODEL_COPY", "Unexpected error during model copy", e)
             }
         } else {
             Log.d("MODEL_COPY", "Model already exists at: ${modelFile.absolutePath}")
         }
     }
+
 }

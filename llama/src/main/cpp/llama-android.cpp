@@ -663,3 +663,4 @@ Java_android_llama_cpp_LLamaAndroid_get_1eot_1str(JNIEnv *env, jobject , jlong j
      return env->NewStringUTF(piece.c_str());
 
 }
+

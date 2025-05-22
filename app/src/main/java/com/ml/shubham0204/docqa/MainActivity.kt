@@ -17,6 +17,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.ml.shubham0204.docqa.data.ChunksDB
+import com.ml.shubham0204.docqa.domain.embeddings.SentenceEmbeddingProvider
 import com.ml.shubham0204.docqa.domain.retrievers.LuceneIndexer
 import com.ml.shubham0204.docqa.ui.screens.chat.ChatScreen
 import com.ml.shubham0204.docqa.ui.screens.docs.DocsScreen
@@ -31,7 +32,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        chunksDB = ChunksDB()
+        val sentenceEncoder = SentenceEmbeddingProvider(this)
+        chunksDB = ChunksDB(sentenceEncoder)
 
         enableEdgeToEdge()
 

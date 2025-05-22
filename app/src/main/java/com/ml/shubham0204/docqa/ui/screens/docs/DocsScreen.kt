@@ -170,24 +170,24 @@ private fun DocsListItem(
                 color = Color.DarkGray,
             )
         }
-        Icon(
-            modifier =
-                Modifier.clickable {
-                    createAlertDialog(
-                        dialogTitle = "Remove document",
-                        dialogText =
-                            "Are you sure to remove this document from the database. Responses to " +
-                                "further queries will not refer content from this document.",
-                        dialogPositiveButtonText = "Remove",
-                        onPositiveButtonClick = { onRemoveDocClick(document.docId) },
-                        dialogNegativeButtonText = "Cancel",
-                        onNegativeButtonClick = {},
-                    )
-                },
-            imageVector = Icons.Default.Clear,
-            tint = Color.DarkGray,
-            contentDescription = "Remove this document",
-        )
+//        Icon(
+//            modifier =
+//                Modifier.clickable {
+//                    createAlertDialog(
+//                        dialogTitle = "Remove document",
+//                        dialogText =
+//                            "Are you sure to remove this document from the database. Responses to " +
+//                                "further queries will not refer content from this document.",
+//                        dialogPositiveButtonText = "Remove",
+//                        onPositiveButtonClick = { onRemoveDocClick(document.docId) },
+//                        dialogNegativeButtonText = "Cancel",
+//                        onNegativeButtonClick = {},
+//                    )
+//                },
+//            imageVector = Icons.Default.Clear,
+//            tint = Color.DarkGray,
+//            contentDescription = "Remove this document",
+//        )
         Spacer(modifier = Modifier.width(2.dp))
     }
 }
@@ -203,15 +203,23 @@ private fun DocOperations(docsViewModel: DocsViewModel) {
 
     // Add state for the chunk options dialog
     var showChunkOptionsDialog by remember { mutableStateOf(false) }
+    var showRemoveDialog by remember { mutableStateOf(false) }
+    val documents by docsViewModel.getAllDocuments().collectAsState(initial = emptyList())
+    val document = documents.firstOrNull()  // Diasumsikan hanya satu dokumen chunk aktif
 
     // Define chunk options
     val chunkOptions = listOf(
+        "sliding window 25 128" to "chunks/sliding_25_128.json",
+        "sliding window 50 128" to "chunks/sliding_50_128.json",
+        "sliding window 25 256" to "chunks/sliding_25_256.json",
         "sliding window 50 256" to "chunks/sliding_50_256.json",
         "sliding window 100 256" to "chunks/sliding_100_256.json",
+        "sliding window 150 256" to "chunks/sliding_150_256.json",
         "sliding window 50 512" to "chunks/sliding_50_512.json",
         "sliding window 100 512" to "chunks/sliding_100_512.json",
-        "small 128 to big 256" to "chunks/128_to_256.json",
-        "small 256 to big 512" to "chunks/256_to_512.json"
+        "sliding window 150 512" to "chunks/sliding_150_512.json",
+//        "semantic without overlap" to "chunks/semantic_without_overlap.json",
+//        "semantic with overlap" to "chunks/semantic_with_overlap.json"
     )
 
     val launcher =
@@ -228,18 +236,6 @@ private fun DocOperations(docsViewModel: DocsViewModel) {
                     cursor.moveToFirst()
                     docFileName = cursor.getString(nameIndex)
                 }
-//                context.contentResolver.openInputStream(uri)?.let { inputStream ->
-//                    showProgressDialog()
-//                    CoroutineScope(Dispatchers.IO).launch {
-//                        docsViewModel.addDocumentFromAssets(
-//                            context, "chunks/sliding_50_256.json"
-//                        )
-//                        withContext(Dispatchers.IO) {
-//                            hideProgressDialog()
-//                            inputStream.close()
-//                        }
-//                    }
-//                }
             }
         }
 
@@ -283,27 +279,56 @@ private fun DocOperations(docsViewModel: DocsViewModel) {
         )
     }
 
-    Row(
-        modifier = Modifier.padding(horizontal = 8.dp, vertical = 16.dp).fillMaxWidth(),
-    ) {
-        // Upload PDF from device
-        Button(
-            modifier = Modifier.weight(1f).padding(2.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6650a4)),
-            onClick = {
-                docType = Readers.DocumentType.PDF
-                showChunkOptionsDialog = true
-//                showProgressDialog()
-//                CoroutineScope(Dispatchers.IO).launch {
-//                    docsViewModel.addDocumentFromAssets(context, "chunks/256_to_512.json")
-//                    withContext(Dispatchers.Main) {
-//                        hideProgressDialog()
-//                    }
-//                }
-            },
-        ) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = "Add Chunks", tint = Color.White)
-            Text(text = "Chunks", color = Color.White)
+    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+        if (document != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    docsViewModel.removeDocument(document.docId)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+            ) {
+                Icon(imageVector = Icons.Default.Clear, contentDescription = "Clear Chunk", tint = Color.White)
+                Text("Clear Chunk", color = Color.White)
+            }
+            if (showRemoveDialog) {
+                AlertDialog(
+                    onDismissRequest = { showRemoveDialog = false },
+                    title = { Text("Remove document") },
+                    text = {
+                        Text(
+                            "Are you sure to remove this document from the database? " +
+                                    "Responses to further queries will not refer to content from this document."
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            docsViewModel.removeDocument(document.docId)
+                            showRemoveDialog = false
+                        }) {
+                            Text("Remove")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showRemoveDialog = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+        } else {
+            // Belum ada dokumen => Tampilkan tombol +Chunk
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    showChunkOptionsDialog = true
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6650a4))
+            ) {
+                Icon(imageVector = Icons.Default.Add, contentDescription = "Add Chunk", tint = Color.White)
+                Text(" Chunk", color = Color.White)
+            }
         }
     }
 }

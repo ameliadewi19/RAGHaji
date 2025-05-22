@@ -67,6 +67,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -157,7 +158,10 @@ fun ChatScreen(
                                 onClick = {
                                     selectedIndexType = option
                                     expanded = false
+                                    // Log ketika index type dipilih
+                                    Log.d("IndexType", "Selected Index Type: $selectedIndexType")
                                 }
+
                             )
                         }
                     }
@@ -396,7 +400,7 @@ fun loadQuestionsAndAnswersFromXlsx(context: Context): Pair<ArrayList<String>, A
 
     try {
         // Membuka file XLSX dari assets
-        val inputStream: InputStream = context.assets.open("dataset_pengujian.xlsx")
+        val inputStream: InputStream = context.assets.open("dataset_pengujian_fiks.xlsx")
         val workbook: Workbook = WorkbookFactory.create(inputStream)
 
         // Mengambil sheet pertama
@@ -440,6 +444,9 @@ private fun QueryInput(
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    // Coroutine scope for launching background tasks
+    val scope = rememberCoroutineScope()
+
     // Daftar query yang akan diproses
     val (questions, correctAnswers) = loadQuestionsAndAnswersFromXlsx(context)
     val correctAnswerDump = ""
@@ -478,27 +485,46 @@ private fun QueryInput(
 
                 try {
                     when (indexType) {
-                        "Sparse" -> chatViewModel.getAnswerSparse(
-                            questionText,
-                            context.getString(R.string.prompt_1),
-                            correctAnswerDump,
-                            topK
-                        )
+                        "Sparse" -> {
+                            Log.d("QueryInput", "Calling getAnswerSparse")
+                            chatViewModel.getAnswerSparse(
+                                questionText,
+                                context.getString(R.string.prompt_1),
+                                correctAnswerDump,
+                                topK
+                            )
+                        }
 
-                        "Dense" -> chatViewModel.getAnswer(
-                            questionText,
-                            context.getString(R.string.prompt_1),
-                            correctAnswerDump,
-                            topK
-                        )
+                        "Dense" -> {
+                            Log.d("QueryInput", "Calling getAnswer")
+                            chatViewModel.getAnswer(
+                                questionText,
+                                context.getString(R.string.prompt_1),
+                                correctAnswerDump,
+                                topK
+                            )
+                        }
 
-                        "Hybrid" -> chatViewModel.getAnswerHybrid(
-                            context,
-                            questionText,
-                            correctAnswerDump,
-                            topK
-                        )
+                        "Hybrid" -> {
+                            Log.d("QueryInput", "Calling getAnswerHybrid")
+                            chatViewModel.getAnswerHybrid(
+                                context,
+                                questionText,
+                                correctAnswerDump,
+                                topK
+                            )
+                        }
                     }
+                } catch (e: Exception) {
+                    createAlertDialog(
+                        dialogTitle = "Error",
+                        dialogText = "An error occurred while generating the response: ${e.message}",
+                        dialogPositiveButtonText = "Close",
+                        onPositiveButtonClick = {},
+                        dialogNegativeButtonText = null,
+                        onNegativeButtonClick = {},
+                    )
+
                 } catch (e: Exception) {
                     createAlertDialog(
                         dialogTitle = "Error",
@@ -514,6 +540,81 @@ private fun QueryInput(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = "Send query",
+                tint = Color.White,
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+        IconButton(
+            modifier = Modifier.testTag("test_button").background(Color.Blue, CircleShape),
+            onClick = {
+                keyboardController?.hide()
+//
+//                if (questionText.trim().isEmpty()) {
+//                    Toast.makeText(context, "Enter a query to execute", Toast.LENGTH_LONG).show()
+//                    return@IconButton
+//                }
+
+                try {
+                    scope.launch {
+                        questions.zip(correctAnswers).forEach { (question, correctAnswer) ->  // Pair question sama answer
+                            // Menambahkan kondisi berdasarkan indexType
+                            when (indexType) {
+                                "Sparse" -> {
+                                    // Kondisi untuk Sparse
+                                    chatViewModel.getAnswerSparse(
+                                        question,
+                                        context.getString(R.string.prompt_1),
+                                        correctAnswer,
+                                        topK
+                                    )
+                                }
+                                "Dense" -> {
+                                    // Kondisi untuk Dense
+                                    chatViewModel.getAnswer(
+                                        question,
+                                        context.getString(R.string.prompt_1),
+                                        correctAnswer,
+                                        topK
+                                    )
+                                }
+                                "Hybrid" -> {
+                                    // Kondisi untuk Hybrid
+                                    chatViewModel.getAnswerHybrid(
+                                        context,
+                                        question,
+                                        correctAnswer,
+                                        topK
+                                    )
+                                }
+                                else -> {
+                                    // Default case jika indexType tidak sesuai
+                                    Log.e("QueryInput", "Unknown indexType: $indexType")
+                                }
+                            }
+
+                            // Tunggu sampai respons selesai dihasilkan
+                            while (chatViewModel.isGeneratingResponseState.value) {
+                                delay(100)
+                            }
+                            delay(300) // Penundaan tambahan untuk mencegah request terlalu cepat
+                        }
+                    }
+                } catch (e: Exception) {
+                    createAlertDialog(
+                        dialogTitle = "Error",
+                        dialogText = "An error occurred while generating the response: ${e.message}",
+                        dialogPositiveButtonText = "Close",
+                        onPositiveButtonClick = {},
+                        dialogNegativeButtonText = null,
+                        onNegativeButtonClick = {},
+                    )
+                }
+            }
+        ) {
+            Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = "Testing",
                 tint = Color.White,
             )
         }

@@ -33,122 +33,6 @@ class DocsViewModel(
     private val chunksDB: ChunksDB,
     private val sentenceEncoder: SentenceEmbeddingProvider,
 ) : ViewModel() {
-    suspend fun addDocument(
-        inputStream: InputStream,
-        fileName: String,
-        documentType: Readers.DocumentType,
-    ) = withContext(Dispatchers.IO) {
-        chunksDB.clearChunks()
-        val text =
-            Readers.getReaderForDocType(documentType).readFromInputStream(inputStream)
-                ?: return@withContext
-        val newDocId =
-            documentsDB.addDocument(
-                Document(
-                    docText = text,
-                    docFileName = fileName,
-                    docAddedTime = System.currentTimeMillis(),
-                ),
-            )
-
-        //default fixed size
-//        setProgressDialogText("Creating chunks...")
-//        val chunks = WhiteSpaceSplitter.createChunks(text, chunkSize = 512, chunkOverlap = 20)
-//        setProgressDialogText("Adding chunks to database...")
-//        val size = chunks.size
-//        chunks.forEachIndexed { index, s ->
-//            setProgressDialogText("Added ${index + 1}/$size chunk(s) to database...")
-//            val embedding = sentenceEncoder.encodeText(s)
-//            chunksDB.addChunk(
-//                Chunk(
-//                    docId = newDocId,
-//                    docFileName = fileName,
-//                    chunkData = s,
-//                    chunkEmbedding = embedding,
-//                ),
-//            )
-//        }
-//
-//        Log.d("ChunkDebug", "=== CHUNK Default ===")
-//        chunks.forEachIndexed { index, chunkText ->
-//            Log.d(
-//                "ChunkDebug",
-//                "Chunk $index (size=${chunkText.length}, text: ${chunkText}"
-//            )
-//        }
-//        Log.d("ChunkDebug", "=== TOTAL CHUNKS: ${chunks.size} ===")
-
-        //small2big
-//        setProgressDialogText("Creating chunks...")
-//        val chunkNodes = Small2BigChunker.createMultiSizeChunks(
-//            docText = text,
-//            baseChunkSize = 1024,
-//            subChunkSizes = listOf(128, 256, 512)
-//        )
-//        setProgressDialogText("Adding chunks to database...")
-//        val size = chunkNodes.size
-//        chunkNodes.forEachIndexed { index, node ->
-//            setProgressDialogText("Added ${index + 1}/$size chunk(s) to database...")
-//
-//            val embedding = sentenceEncoder.encodeText(node.text)
-//
-//            chunksDB.addChunk(
-//                Chunk(
-//                    docId = newDocId,
-//                    docFileName = fileName,
-//                    chunkData = node.text,
-//                    chunkEmbedding = embedding,
-//                    chunkSize = node.size,
-//                    chunkUuid = node.id,
-//                    parentChunkId = node.parentId
-//                )
-//            )
-//        }
-//        Log.d("ChunkDebug", "=== CHUNK HASIL SMALL2BIG ===")
-//        chunkNodes.forEachIndexed { index, chunk ->
-//            Log.d(
-//                "ChunkDebug",
-//                "Chunk $index (size=${chunk.size}, parent=${chunk.parentId ?: "ROOT"}): ${chunk.text}..."
-//            )
-//        }
-//        Log.d("ChunkDebug", "=== TOTAL CHUNKS: ${chunkNodes.size} ===")
-
-
-        //sliding window
-        setProgressDialogText("Creating chunks...")
-        val chunks = SlidingWindowChunker.createSlidingChunks(
-            docText = text,
-            chunkSize = 128,
-            overlap = 20
-        )
-
-        Log.d("ChunkDebug", "=== CHUNK HASIL SLIDING WINDOW ===")
-        chunks.forEachIndexed { index, chunkText ->
-            Log.d(
-                "ChunkDebug",
-                "Chunk $index (size=${chunkText.length}, parent=${"ROOT"}): ${chunkText}..."
-            )
-        }
-        Log.d("ChunkDebug", "=== TOTAL CHUNKS: ${chunks.size} ===")
-
-        setProgressDialogText("Adding chunks to database...")
-        val size = chunks.size
-        chunks.forEachIndexed { index, chunkText ->
-            setProgressDialogText("Added ${index + 1}/$size chunk(s) to database...")
-
-            val embedding = sentenceEncoder.encodeText(chunkText)
-
-            chunksDB.addChunk(
-                Chunk(
-                    docId = newDocId,
-                    docFileName = fileName,
-                    chunkText = chunkText,
-                    chunkEmbedding = embedding,
-                )
-            )
-        }
-
-    }
 
     suspend fun addDocumentFromAssets(
         context: Context,
@@ -166,13 +50,21 @@ class DocsViewModel(
             )
         )
 
+        Log.d("Embedding", "Test Tambah")
+
+
         setProgressDialogText("Adding chunks to database...")
 
         val size = chunks.size
         chunks.forEachIndexed { index, chunkJson ->
             setProgressDialogText("Added ${index + 1}/$size chunk(s) to database...")
 
-            val embedding = sentenceEncoder.encodeText(chunkJson.chunk_text)
+//            val embedding = sentenceEncoder.encodeText(chunkJson.chunk_text)
+            val embedding = sentenceEncoder.encodeText("passage: $chunkJson.chunk_text")
+
+            // 🔽 Tambahkan log untuk embedding
+            Log.d("EmbeddingDebug", "Chunk ${index + 1} embedding size: ${embedding.size}")
+            Log.d("EmbeddingDebug", "Chunk ${index + 1} sample: ${embedding.take(5)}") // ambil 5 nilai awal
 
             chunksDB.addChunk(
                 Chunk(
@@ -194,7 +86,7 @@ class DocsViewModel(
         }
         Log.d("ChunkDebug", "=== TOTAL CHUNKS: ${chunks.size} ===")
 
-//        LuceneIndexer.initializeLuceneIndex(context, chunksDB)
+//    LuceneIndexer.initializeLuceneIndex(context, chunksDB)
     }
 
     suspend fun rebuildLuceneIndex(context: Context) {
@@ -208,94 +100,6 @@ class DocsViewModel(
         documentsDB.removeDocument(docId)
         chunksDB.removeChunks(docId)
         LuceneIndexer.clearIndex()
-    }
-
-//    suspend fun addDocument(context: Context) = withContext(Dispatchers.IO) {
-//        val fileName = "split_haji_1-1.pdf"
-//        val documentType = Readers.DocumentType.PDF
-//
-//        // Skip jika sudah pernah di-chunk
-//        if (chunksDB.hasChunks(fileName)) {
-//            Log.i("DocsViewModel", "Chunks untuk dokumen sudah ada, skip.")
-//            return@withContext
-//        }
-//
-//        // Baca dokumen dari assets
-//        val inputStream = context.assets.open(fileName)
-//        val text = Readers.getReaderForDocType(documentType).readFromInputStream(inputStream)
-//            ?: return@withContext
-//
-//        // (Opsional) Simpan dokumen ke DB kalau masih butuh catatan dokumentasi
-//        documentsDB.addDocument(
-//            Document(
-//                docText = text,
-//                docFileName = fileName,
-//                docAddedTime = System.currentTimeMillis(),
-//            ),
-//        )
-//
-//        // Proses chunking
-//        val chunks = WhiteSpaceSplitter.createChunks(text, chunkSize = 500, chunkOverlap = 50)
-//        val size = chunks.size
-//        chunks.forEachIndexed { index, chunkText ->
-//            val embedding = sentenceEncoder.encodeText(chunkText)
-//            chunksDB.addChunk(
-//                Chunk(
-//                    docFileName = fileName,
-//                    chunkData = chunkText,
-//                    chunkEmbedding = embedding,
-//                )
-//            )
-//            Log.i("DocsViewModel", "Added ${index + 1}/$size chunk(s)")
-//        }
-//
-//        Log.i("DocsViewModel", "Chunking dan penyimpanan selesai.")
-//    }
-
-    suspend fun addDocumentFromUrl(
-        url: String,
-        context: Context,
-        onDownloadComplete: (Boolean) -> Unit,
-    ) = withContext(Dispatchers.IO) {
-        try {
-            val connection = URL(url).openConnection() as HttpURLConnection
-            connection.connect()
-            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
-                val inputStream = connection.inputStream
-                val fileName = getFileNameFromURL(url)
-                val file = File(context.cacheDir, fileName)
-
-                file.outputStream().use { outputStream ->
-                    inputStream.copyTo(outputStream)
-                }
-
-                // Determine the document type based on the file extension
-                // Add handle for unknown types if supported
-                val documentType =
-                    when (fileName.substringAfterLast(".", "").lowercase()) {
-                        "pdf" -> Readers.DocumentType.PDF
-                        "docx" -> Readers.DocumentType.MS_DOCX
-                        "doc" -> Readers.DocumentType.MS_DOCX
-                        else -> Readers.DocumentType.UNKNOWN
-                    }
-
-                // Pass file to your document handling logic
-                addDocument(file.inputStream(), fileName, documentType)
-
-                withContext(Dispatchers.Main) {
-                    onDownloadComplete(true)
-                }
-            } else {
-                withContext(Dispatchers.Main) {
-                    onDownloadComplete(false)
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            withContext(Dispatchers.Main) {
-                onDownloadComplete(false)
-            }
-        }
     }
 
     fun getAllDocuments(): Flow<List<Document>> = documentsDB.getAllDocuments()
