@@ -28,6 +28,7 @@ class LlamaRemoteAPI(private val context: Context) {
 //    private var modelNameFile = "qwen2-1_5b-instruct-q4_0.gguf"
 //    private var modelNameFile = "Llama-3.2-1B-Instruct-Q6_K_L.gguf"
     private var modelNameFile = "gemma-2-2b-it-Q4_K_M.gguf"
+    private var jsonFileName = "gemma-128-50-sparse.json"
 
     val tokensHajiUmrah = listOf(
         // Rukun Haji/Umrah
@@ -142,12 +143,22 @@ class LlamaRemoteAPI(private val context: Context) {
             val inferenceStart = System.currentTimeMillis()
             var firstTokenTime: Long? = null
 
+            val stopToken = "</s>"
+
             llamaAndroid?.send(prompt)?.collect { token ->
                 if (firstTokenTime == null) {
                     firstTokenTime = System.currentTimeMillis()
                 }
-                resultTokens.append(token)
                 Log.d("TOKEN", "Received token: $token")
+
+                // Cek token selesai
+                if (token == stopToken) {
+                    Log.d("LLAMA", "Stop token detected, ending generation.")
+                    // Kalau ketemu stop token, hentikan koleksi token
+                    return@collect
+                }
+
+                resultTokens.append(token)
 
                 // Kirim ke UI/WebSocket/dsb via callback
                 withContext(Dispatchers.Main) {
@@ -268,7 +279,7 @@ class LlamaRemoteAPI(private val context: Context) {
             downloadsFolder.mkdirs()
         }
 
-        val logFile = File(downloadsFolder, "gemma_150_256_sparse.json")
+        val logFile = File(downloadsFolder, jsonFileName)
 //        val logFile = File(downloadsFolder, "hasil_final_chunk_150_256_hybrid.json")
         val gson = GsonBuilder().setPrettyPrinting().create()
 

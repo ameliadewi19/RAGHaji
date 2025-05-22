@@ -263,6 +263,7 @@ Tugas Anda:
 - Perhatikan spasi, tanda baca, dan baris baru jika diperlukan.
 - Hindari pengulangan yang tidak perlu.
 - Tidak perlu membuat kesimpulan atau rekomendasi kecuali disebut dalam konteks.
+- Akhiri jawaban dengan token </s>.
 
 === Konteks ===
 $jointContext
@@ -373,6 +374,7 @@ Tugas Anda:
 - Perhatikan spasi, tanda baca, dan baris baru jika diperlukan.
 - Hindari pengulangan yang tidak perlu.
 - Tidak perlu membuat kesimpulan atau rekomendasi kecuali disebut dalam konteks.
+- Akhiri jawaban dengan token </s>.
 
 === Konteks ===
 $jointContext
@@ -487,6 +489,7 @@ Tugas Anda:
 - Perhatikan spasi, tanda baca, dan baris baru jika diperlukan.
 - Hindari pengulangan yang tidak perlu.
 - Tidak perlu membuat kesimpulan atau rekomendasi kecuali disebut dalam konteks.
+- Akhiri jawaban dengan token </s>.
 
 === Konteks ===
 $jointContext
