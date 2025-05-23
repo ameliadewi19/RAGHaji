@@ -28,6 +28,7 @@ class LlamaRemoteAPI(private val context: Context) {
 //    private var modelNameFile = "qwen2-1_5b-instruct-q4_0.gguf"
 //    private var modelNameFile = "Llama-3.2-1B-Instruct-Q6_K_L.gguf"
     private var modelNameFile = "gemma-2-2b-it-Q4_K_M.gguf"
+//    private var jsonFileName = "gemma-128-50-dense-hasil.json"
 
     val tokensHajiUmrah = listOf(
         // Rukun Haji/Umrah
@@ -128,7 +129,8 @@ class LlamaRemoteAPI(private val context: Context) {
         query: String,             // <-- Tambah query
         correctAnswer: String,     // <-- Tambah correctAnswer
         retrieveDuration: Long,
-        onToken: suspend (String) -> Unit
+        jsonFileName: String,
+        onToken: suspend (String) -> Unit,
     ): String? = withContext(Dispatchers.IO) {
         try {
             val totalStart = System.currentTimeMillis()
@@ -146,8 +148,9 @@ class LlamaRemoteAPI(private val context: Context) {
                 if (firstTokenTime == null) {
                     firstTokenTime = System.currentTimeMillis()
                 }
-                resultTokens.append(token)
                 Log.d("TOKEN", "Received token: $token")
+
+                resultTokens.append(token)
 
                 // Kirim ke UI/WebSocket/dsb via callback
                 withContext(Dispatchers.Main) {
@@ -192,7 +195,7 @@ class LlamaRemoteAPI(private val context: Context) {
 
             // Menyimpan log ke json dengan tambahan prompt
 //            writeLogToCSV(context, logData, prompt)
-            writeLogToJson(context, logData)
+            writeLogToJson(context, logData, jsonFileName)
 
             return@withContext resultText
 
@@ -261,14 +264,14 @@ class LlamaRemoteAPI(private val context: Context) {
 //        }
 //    }
 
-    fun writeLogToJson(context: Context, logData: Map<String, String>) {
+    fun writeLogToJson(context: Context, logData: Map<String, String>, jsonFileName: String) {
         val downloadsFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
 
         if (!downloadsFolder.exists()) {
             downloadsFolder.mkdirs()
         }
 
-        val logFile = File(downloadsFolder, "gemma_150_256_sparse.json")
+        val logFile = File(downloadsFolder, jsonFileName)
 //        val logFile = File(downloadsFolder, "hasil_final_chunk_150_256_hybrid.json")
         val gson = GsonBuilder().setPrettyPrinting().create()
 
