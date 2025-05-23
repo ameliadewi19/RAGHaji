@@ -48,6 +48,8 @@ class ChatViewModel(
 
     private val luceneIndexer = LuceneIndexer
 
+    private val jsonFileNameRetrieval = "retrieval.json"
+
     fun mergeChunksWithOverlap(chunks: List<String>): String {
         val merged = chunks.toMutableList()
 
@@ -111,7 +113,7 @@ class ChatViewModel(
         context: Context,
         query: String,
         chunks: List<Map<String, String?>>,  // izinkan nullable String  // List objek dengan key id dan chunk_text
-        filename: String = "hasil_retrieval_dense_150_256.json"
+        filename: String
     ) {
         try {
             val downloadsFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
@@ -155,7 +157,9 @@ class ChatViewModel(
         query: String,
         prompt: String,
         correctAnswer: String,
-        topK: Int
+        topK: Int,
+        jsonFileName: String,
+//        jsonFileNameRetrieval: String
     ) {
         val retrieveStart = System.currentTimeMillis()
 
@@ -164,7 +168,10 @@ class ChatViewModel(
         _questionState.value = query
         _responseState.value = "" // Kosongkan response sebelumnya sebelum mulai
 
+
         CoroutineScope(Dispatchers.IO).launch {
+            val localQuery = query  // Lock value of query
+
             try {
                 val retrievedChunks = chunksDB.getSimilarChunks(query, n = topK)
 
@@ -184,7 +191,7 @@ class ChatViewModel(
                     )
                 }
                 if (chunkList.isNotEmpty()) {
-                    saveJson(context, query, chunkListID)
+                    saveJson(context, localQuery, chunkListID, jsonFileNameRetrieval)
                 }
 
                 val jointContext = mergeChunksWithOverlap(chunkList)
@@ -279,7 +286,7 @@ Jawaban:
                 val streamBuffer = ArrayDeque<String>() // Buffer streaming satu langkah tertunda
                 val maxWindowSize = 30
 
-                llamaRemoteAPI.getResponsePerToken(inputPrompt, query, correctAnswer, retrieveDuration) { token ->
+                llamaRemoteAPI.getResponsePerToken(inputPrompt, query, correctAnswer, retrieveDuration, jsonFileName) { token ->
                     tokenWindow.addLast(token)
                     if (tokenWindow.size > maxWindowSize) tokenWindow.removeFirst()
 
@@ -314,7 +321,9 @@ Jawaban:
         query: String,
         prompt: String,
         correctAnswer: String,
-        topK: Int
+        topK: Int,
+        jsonFileName: String,
+//        jsonFileNameRetrieval: String
     ) {
         val retrieveStart = System.currentTimeMillis()
 
@@ -324,6 +333,8 @@ Jawaban:
         _responseState.value = ""
 
         CoroutineScope(Dispatchers.IO).launch {
+            val localQuery = query  // Lock value of query
+
             try {
                 // Ambil N chunk terdekat dari Lucene
                 val retrievedChunks = chunksDB.getSimilarChunksSparse(context, query, n = topK)
@@ -349,9 +360,9 @@ Jawaban:
                         "chunk_text" to it.second.chunkText
                     )
                 }
-//                if (chunkList.isNotEmpty()) {
-//                    saveJson(context, query, chunkListID)
-//                }
+                if (chunkList.isNotEmpty()) {
+                    saveJson(context, localQuery, chunkListID, jsonFileNameRetrieval)
+                }
 
                 val jointContext = mergeChunksWithOverlap(chunkList)
 
@@ -390,7 +401,7 @@ Jawaban:
                 val streamBuffer = ArrayDeque<String>() // Buffer streaming satu langkah tertunda
                 val maxWindowSize = 30
 
-                llamaRemoteAPI.getResponsePerToken(inputPrompt, query, correctAnswer, retrieveDuration) { token ->
+                llamaRemoteAPI.getResponsePerToken(inputPrompt, query, correctAnswer, retrieveDuration, jsonFileName) { token ->
                     tokenWindow.addLast(token)
                     if (tokenWindow.size > maxWindowSize) tokenWindow.removeFirst()
 
@@ -427,7 +438,9 @@ Jawaban:
         query: String,
         correctAnswer: String,
         topK: Int,
-        lambda: Float = 0.5f
+        lambda: Float = 0.5f,
+        jsonFileName: String,
+//        jsonFileNameRetrieval: String
     ) {
         val retrieveStart = System.currentTimeMillis()
         val llamaRemoteAPI = LlamaRemoteAPI(context)
@@ -436,6 +449,8 @@ Jawaban:
         _responseState.value = ""
 
         CoroutineScope(Dispatchers.IO).launch {
+            val localQuery = query  // Lock value of query
+
             try {
                 // Ambil chunk
                 val retrievedChunks = chunksDB.getHybridSimilarChunks(
@@ -456,7 +471,7 @@ Jawaban:
                     )
                 }
                 if (chunkList.isNotEmpty()) {
-                    saveJson(context, query, chunkListID)
+                    saveJson(context, localQuery, chunkListID, jsonFileNameRetrieval)
                 }
 
                 val jointContext = mergeChunksWithOverlap(chunkList)
@@ -524,7 +539,7 @@ Jawaban:
                 val streamBuffer = ArrayDeque<String>() // Buffer streaming satu langkah tertunda
                 val maxWindowSize = 30
 
-                llamaRemoteAPI.getResponsePerToken(inputPrompt, query, correctAnswer, retrieveDuration) { token ->
+                llamaRemoteAPI.getResponsePerToken(inputPrompt, query, correctAnswer, retrieveDuration, jsonFileName) { token ->
                     tokenWindow.addLast(token)
                     if (tokenWindow.size > maxWindowSize) tokenWindow.removeFirst()
 

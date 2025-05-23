@@ -28,7 +28,7 @@ class LlamaRemoteAPI(private val context: Context) {
 //    private var modelNameFile = "qwen2-1_5b-instruct-q4_0.gguf"
 //    private var modelNameFile = "Llama-3.2-1B-Instruct-Q6_K_L.gguf"
     private var modelNameFile = "gemma-2-2b-it-Q4_K_M.gguf"
-    private var jsonFileName = "gemma-128-50-sparse.json"
+//    private var jsonFileName = "gemma-128-50-dense-hasil.json"
 
     val tokensHajiUmrah = listOf(
         // Rukun Haji/Umrah
@@ -129,7 +129,8 @@ class LlamaRemoteAPI(private val context: Context) {
         query: String,             // <-- Tambah query
         correctAnswer: String,     // <-- Tambah correctAnswer
         retrieveDuration: Long,
-        onToken: suspend (String) -> Unit
+        jsonFileName: String,
+        onToken: suspend (String) -> Unit,
     ): String? = withContext(Dispatchers.IO) {
         try {
             val totalStart = System.currentTimeMillis()
@@ -143,20 +144,11 @@ class LlamaRemoteAPI(private val context: Context) {
             val inferenceStart = System.currentTimeMillis()
             var firstTokenTime: Long? = null
 
-            val stopToken = "</s>"
-
             llamaAndroid?.send(prompt)?.collect { token ->
                 if (firstTokenTime == null) {
                     firstTokenTime = System.currentTimeMillis()
                 }
                 Log.d("TOKEN", "Received token: $token")
-
-                // Cek token selesai
-                if (token == stopToken) {
-                    Log.d("LLAMA", "Stop token detected, ending generation.")
-                    // Kalau ketemu stop token, hentikan koleksi token
-                    return@collect
-                }
 
                 resultTokens.append(token)
 
@@ -203,7 +195,7 @@ class LlamaRemoteAPI(private val context: Context) {
 
             // Menyimpan log ke json dengan tambahan prompt
 //            writeLogToCSV(context, logData, prompt)
-            writeLogToJson(context, logData)
+            writeLogToJson(context, logData, jsonFileName)
 
             return@withContext resultText
 
@@ -272,7 +264,7 @@ class LlamaRemoteAPI(private val context: Context) {
 //        }
 //    }
 
-    fun writeLogToJson(context: Context, logData: Map<String, String>) {
+    fun writeLogToJson(context: Context, logData: Map<String, String>, jsonFileName: String) {
         val downloadsFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
 
         if (!downloadsFolder.exists()) {

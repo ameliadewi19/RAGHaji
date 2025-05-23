@@ -117,6 +117,12 @@ fun ChatScreen(
             val chatViewModel: ChatViewModel = koinViewModel()
             val context = LocalContext.current
 
+            // --- jsonFileName input state ---
+            var jsonFileName by remember { mutableStateOf("data.json") }
+
+//            // --- jsonFileName input state ---
+//            var jsonFileNameRetrieval by remember { mutableStateOf("retrieval.json") }
+
             // --- Dropdown state ---
             var selectedIndexType by remember { mutableStateOf("Hybrid") }
             val indexOptions = listOf("Hybrid", "Sparse", "Dense")
@@ -132,6 +138,32 @@ fun ChatScreen(
                     .padding(16.dp)
                     .fillMaxWidth()
             ) {
+                // JSON File Name Input
+                OutlinedTextField(
+                    value = jsonFileName,
+                    onValueChange = { newValue ->
+                        jsonFileName = newValue
+                    },
+                    label = { Text("JSON File Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                )
+
+//                // JSON File Retrieval Name Input
+//                OutlinedTextField(
+//                    value = jsonFileNameRetrieval,
+//                    onValueChange = { newValue ->
+//                        jsonFileNameRetrieval = newValue
+//                    },
+//                    label = { Text("JSON File Name Retrieval") },
+//                    modifier = Modifier.fillMaxWidth(),
+//                    singleLine = true,
+//                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+//                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 // Index Type Dropdown
                 ExposedDropdownMenuBox(
                     expanded = expanded,
@@ -192,7 +224,9 @@ fun ChatScreen(
                     chatViewModel = chatViewModel,
                     onEditAPIKeyClick = onEditAPIKeyClick,
                     indexType = selectedIndexType,
-                    topK = topK
+                    topK = topK,
+                    jsonFileName = jsonFileName,
+//                    jsonFileNameRetrieval = jsonFileNameRetrieval
                 )
             }
             AppAlertDialog()
@@ -438,7 +472,9 @@ private fun QueryInput(
     chatViewModel: ChatViewModel,
     onEditAPIKeyClick: () -> Unit,
     indexType: String,
-    topK: Int
+    topK: Int,
+    jsonFileName: String,
+//    jsonFileNameRetrieval: String
 ) {
     var questionText by remember { mutableStateOf("") }
     val context = LocalContext.current
@@ -491,7 +527,9 @@ private fun QueryInput(
                                 questionText,
                                 context.getString(R.string.prompt_1),
                                 correctAnswerDump,
-                                topK
+                                topK,
+                                jsonFileName,
+//                                jsonFileNameRetrieval
                             )
                         }
 
@@ -501,7 +539,9 @@ private fun QueryInput(
                                 questionText,
                                 context.getString(R.string.prompt_1),
                                 correctAnswerDump,
-                                topK
+                                topK,
+                                jsonFileName,
+//                                jsonFileNameRetrieval
                             )
                         }
 
@@ -511,7 +551,10 @@ private fun QueryInput(
                                 context,
                                 questionText,
                                 correctAnswerDump,
-                                topK
+                                topK,
+                                0.5f,
+                                jsonFileName,
+//                                jsonFileNameRetrieval
                             )
                         }
                     }
@@ -566,7 +609,9 @@ private fun QueryInput(
                                         question,
                                         context.getString(R.string.prompt_1),
                                         correctAnswer,
-                                        topK
+                                        topK,
+                                        jsonFileName,
+//                                        jsonFileNameRetrieval
                                     )
                                 }
                                 "Dense" -> {
@@ -575,7 +620,9 @@ private fun QueryInput(
                                         question,
                                         context.getString(R.string.prompt_1),
                                         correctAnswer,
-                                        topK
+                                        topK,
+                                        jsonFileName,
+//                                        jsonFileNameRetrieval
                                     )
                                 }
                                 "Hybrid" -> {
@@ -584,7 +631,10 @@ private fun QueryInput(
                                         context,
                                         question,
                                         correctAnswer,
-                                        topK
+                                        topK,
+                                        0.5f,
+                                        jsonFileName,
+//                                        jsonFileNameRetrieval
                                     )
                                 }
                                 else -> {

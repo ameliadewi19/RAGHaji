@@ -22,10 +22,10 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-        ndk {
-            // Add NDK properties if wanted, e.g.
-//            abiFilters += listOf("arm64-v8a")
-        }
+//        ndk {
+//            // Add NDK properties if wanted, e.g.
+//            abiFilters += listOf("x86", "x86_64")
+//        }
     }
     signingConfigs {
         create("release") {
@@ -169,6 +169,14 @@ dependencies {
     // Sastrawi
     implementation("com.andylibrian.jsastrawi:jsastrawi:0.1")
 
+//    constraints {
+//        implementation("androidx.test.espresso:espresso-core:3.5.1") {
+//            because("Resolve conflict between Compose UI Test and Espresso")
+//        }
+//    }
+//
+//    implementation("androidx.test.espresso:espresso-core:3.5.1")
+
 }
 
 apply(plugin = "io.objectbox")
@@ -189,6 +197,14 @@ apply(plugin = "io.objectbox")
 //    sourceSets {
 //        getByName("main") {
 //            srcDir("src/main/python")
+//        }
+//    }
+//}
+//
+//allprojects {
+//    configurations.all {
+//        resolutionStrategy {
+//            force("androidx.test.espresso:espresso-core:3.5.1")
 //        }
 //    }
 //}
